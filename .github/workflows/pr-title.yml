@@ -7,6 +7,10 @@ on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
 
+# Дефолтный GITHUB_TOKEN репо урезан — экшену нужно явное чтение PR.
+permissions:
+  pull-requests: read
+
 jobs:
   semantic:
     name: Semantic PR title

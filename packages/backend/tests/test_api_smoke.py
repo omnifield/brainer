@@ -29,6 +29,10 @@ class _FakePopen:
     def poll(self):
         return None
 
+    def terminate(self):
+        # posix stop() path calls popen.terminate(); win32 path is patched per-test.
+        return None
+
 
 @pytest.fixture
 def client():
