@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 import pytest
 
@@ -15,7 +14,7 @@ from app.sessions.models import Activity
 
 
 class _FakeTelemetry:
-    def __init__(self, activity: Optional[Activity] = None):
+    def __init__(self, activity: Activity | None = None):
         self._activity = activity
 
     async def activity(self, scope: str, **_):
@@ -86,7 +85,7 @@ def test_stop_issues_tree_kill(monkeypatch):
 
 
 async def test_status_working_when_alive_and_fresh():
-    fresh = Activity(tool="Edit", at=datetime.now(tz=timezone.utc).isoformat(), summary="x")
+    fresh = Activity(tool="Edit", at=datetime.now(tz=UTC).isoformat(), summary="x")
     provider = ClaudeCodeProvider(Settings(), _FakeTelemetry(fresh))
     handle = LaunchHandle(scope="backend", package="backend", repo="r", pid=1, popen=_FakePopen([]))
     assert await provider.status(handle) == "working"

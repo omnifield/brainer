@@ -4,8 +4,6 @@ the optional sessionId link the contract defines.
 
 from __future__ import annotations
 
-from typing import Optional
-
 from .models import CreateTaskInput, Task, UpdateTaskInput
 
 
@@ -28,7 +26,7 @@ class TaskStore:
         self._tasks.append(task)
         return task
 
-    def update(self, task_id: str, patch: UpdateTaskInput) -> Optional[Task]:
+    def update(self, task_id: str, patch: UpdateTaskInput) -> Task | None:
         for task in self._tasks:
             if task.id == task_id:
                 data = patch.model_dump(exclude_unset=True)

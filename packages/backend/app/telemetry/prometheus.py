@@ -6,7 +6,7 @@ session count — labelled by `scope`/`package`. We read instant sums scoped to 
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 
@@ -21,7 +21,7 @@ _METRICS = {
 }
 
 
-def parse_scalar(payload: dict[str, Any]) -> Optional[float]:
+def parse_scalar(payload: dict[str, Any]) -> float | None:
     """First sample value from an instant-query vector, or None if empty/failed."""
     if payload.get("status") != "success":
         return None
@@ -37,7 +37,7 @@ def parse_scalar(payload: dict[str, Any]) -> Optional[float]:
         return None
 
 
-def parse_label(payload: dict[str, Any], label: str) -> Optional[str]:
+def parse_label(payload: dict[str, Any], label: str) -> str | None:
     for series in payload.get("data", {}).get("result", []):
         val = series.get("metric", {}).get(label)
         if val:
@@ -67,7 +67,7 @@ class PrometheusClient:
                 setattr(m, field, value)
         return m
 
-    async def model_for(self, scope: str) -> Optional[str]:
+    async def model_for(self, scope: str) -> str | None:
         """Best-effort model label off the token metric, if the exporter carries one."""
         payload = await self.query(f'{_METRICS["tokens"]}{{scope="{scope}"}}')
         return parse_label(payload, "model")

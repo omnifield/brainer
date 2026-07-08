@@ -11,7 +11,6 @@ from __future__ import annotations
 import subprocess
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional
 
 from ..sessions.models import Activity, SessionStatus
 
@@ -28,14 +27,14 @@ class LaunchHandle:
     package: str
     repo: str
     pid: int
-    popen: Optional[subprocess.Popen] = None
+    popen: subprocess.Popen | None = None
 
 
 class IAgentProvider(ABC):
     name: str
 
     @abstractmethod
-    def launch(self, *, repo_name: str, repo_path, scope: str, brief: Optional[str] = None) -> LaunchHandle:
+    def launch(self, *, repo_name: str, repo_path, scope: str, brief: str | None = None) -> LaunchHandle:
         """Spawn a scoped agent session; return its handle. Sync (process spawn)."""
 
     @abstractmethod
@@ -43,7 +42,7 @@ class IAgentProvider(ABC):
         """Current lifecycle status of the session."""
 
     @abstractmethod
-    async def activity(self, handle: LaunchHandle) -> Optional[Activity]:
+    async def activity(self, handle: LaunchHandle) -> Activity | None:
         """Most recent observed activity, or None if none seen yet."""
 
     @abstractmethod

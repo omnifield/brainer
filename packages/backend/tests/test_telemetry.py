@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
-import pytest
 
 from app.sessions.models import Activity
 from app.telemetry.loki import (
@@ -20,7 +19,7 @@ from app.telemetry.service import TelemetryService, derive_status
 
 
 def _iso(seconds_ago: float) -> str:
-    return datetime.fromtimestamp(time.time() - seconds_ago, tz=timezone.utc).isoformat()
+    return datetime.fromtimestamp(time.time() - seconds_ago, tz=UTC).isoformat()
 
 
 def _ns(seconds_ago: float) -> str:

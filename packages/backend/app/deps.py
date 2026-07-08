@@ -8,7 +8,6 @@ app shutdown.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 import httpx
 
@@ -33,7 +32,7 @@ class Deps:
     http: httpx.AsyncClient
 
 
-def build_deps(settings: Optional[Settings] = None, *, http: Optional[httpx.AsyncClient] = None) -> Deps:
+def build_deps(settings: Settings | None = None, *, http: httpx.AsyncClient | None = None) -> Deps:
     settings = settings or Settings()
     client = http or httpx.AsyncClient(timeout=5.0)
     loki = LokiClient(settings.loki_url, client)

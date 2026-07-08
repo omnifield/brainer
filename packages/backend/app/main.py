@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
-from typing import Optional
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,7 +22,7 @@ from .deps import Deps, build_deps
 logging.basicConfig(level=logging.INFO)
 
 
-def create_app(deps: Optional[Deps] = None) -> FastAPI:
+def create_app(deps: Deps | None = None) -> FastAPI:
     resolved = deps or build_deps(Settings())
 
     @asynccontextmanager

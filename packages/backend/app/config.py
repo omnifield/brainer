@@ -48,7 +48,9 @@ class Settings:
     # A session with telemetry newer than this is "working", else "idle".
     working_threshold_s: int = field(default_factory=lambda: int(os.environ.get("BRAINER_WORKING_THRESHOLD_S", "60")))
     # How far back to look when discovering sessions we did not spawn.
-    discovery_lookback_s: int = field(default_factory=lambda: int(os.environ.get("BRAINER_DISCOVERY_LOOKBACK_S", "900")))
+    discovery_lookback_s: int = field(
+        default_factory=lambda: int(os.environ.get("BRAINER_DISCOVERY_LOOKBACK_S", "900"))
+    )
     # SSE poll cadence for /stream.
     stream_poll_s: float = field(default_factory=lambda: float(os.environ.get("BRAINER_STREAM_POLL_S", "2.0")))
     repos: dict[str, Repo] = field(default_factory=_default_repos)

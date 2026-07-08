@@ -21,7 +21,6 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Optional
 
 from ..config import Settings
 from ..lib.trace import span
@@ -58,7 +57,7 @@ class ClaudeCodeProvider(IAgentProvider):
             kwargs["start_new_session"] = True
         return subprocess.Popen(cmd, **kwargs)
 
-    def launch(self, *, repo_name: str, repo_path, scope: str, brief: Optional[str] = None) -> LaunchHandle:
+    def launch(self, *, repo_name: str, repo_path, scope: str, brief: str | None = None) -> LaunchHandle:
         with span("provider.launch", scope=scope, repo=repo_name):
             repo_path = Path(repo_path)
             launcher = repo_path / "claude-scope.ps1"
@@ -89,7 +88,7 @@ class ClaudeCodeProvider(IAgentProvider):
             threshold_s=self._settings.working_threshold_s,
         )
 
-    async def activity(self, handle: LaunchHandle) -> Optional[Activity]:
+    async def activity(self, handle: LaunchHandle) -> Activity | None:
         return await self._telemetry.activity(handle.scope)
 
     def stop(self, handle: LaunchHandle) -> bool:

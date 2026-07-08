@@ -1,11 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MockApiClient } from "./mockClient";
 import { onSpan, type TraceSpan } from "../../lib/trace";
+import { MockApiClient } from "./mockClient";
 
 // Deterministic clock + RNG so the contract adapter is fully testable.
 const FIXED_NOW = Date.UTC(2026, 6, 7, 12, 0, 0);
-const make = (rand = () => 0.5) =>
-  new MockApiClient({ tickMs: 0, now: () => FIXED_NOW, rand });
+const make = (rand = () => 0.5) => new MockApiClient({ tickMs: 0, now: () => FIXED_NOW, rand });
 
 describe("MockApiClient — contract shape", () => {
   it("listSessions returns the seeded fleet with contract fields", async () => {

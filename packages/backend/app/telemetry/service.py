@@ -7,8 +7,7 @@ crashing the API (the stack is a prereq for live data, not for the server to boo
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import datetime
 
 import httpx
 
@@ -23,7 +22,7 @@ def _now_ns() -> int:
     return time.time_ns()
 
 
-def derive_status(*, alive: bool, activity: Optional[Activity], now: float, threshold_s: int) -> SessionStatus:
+def derive_status(*, alive: bool, activity: Activity | None, now: float, threshold_s: int) -> SessionStatus:
     """Pure status rule. Dead process → done; fresh telemetry → working; else idle.
 
     blocked/error are semantic states we don't infer in MVP (documented boundary) — a session
@@ -47,7 +46,7 @@ class TelemetryService:
         self._prom = prometheus
         self._lookback_s = discovery_lookback_s
 
-    async def activity(self, scope: str, *, lookback_s: Optional[int] = None) -> Optional[Activity]:
+    async def activity(self, scope: str, *, lookback_s: int | None = None) -> Activity | None:
         lookback = lookback_s or self._lookback_s
         end = _now_ns()
         start = end - lookback * _NS
@@ -57,13 +56,13 @@ class TelemetryService:
             return None
         return parse_latest_activity(payload)
 
-    async def metrics(self, scope: str) -> Optional[Metrics]:
+    async def metrics(self, scope: str) -> Metrics | None:
         try:
             return await self._prom.metrics_for(scope)
         except httpx.HTTPError:
             return None
 
-    async def model(self, scope: str) -> Optional[str]:
+    async def model(self, scope: str) -> str | None:
         try:
             return await self._prom.model_for(scope)
         except httpx.HTTPError:

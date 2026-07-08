@@ -39,9 +39,9 @@ async def create_session(input: CreateSessionInput, deps: Deps = Depends(get_dep
     try:
         session_id = await deps.fleet.launch(input)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except FileNotFoundError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     return {"id": session_id}
 
 

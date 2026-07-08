@@ -54,7 +54,10 @@ def test_list_sessions_empty(client):
 
 
 def test_create_session_and_appears_in_fleet(client):
-    r = client.post("/api/sessions", json={"repo": "omnifield/brainer", "scope": "backend", "briefPath": "briefs/backend-mvp.md"})
+    r = client.post(
+        "/api/sessions",
+        json={"repo": "omnifield/brainer", "scope": "backend", "briefPath": "briefs/backend-mvp.md"},
+    )
     assert r.status_code == 200
     session_id = r.json()["id"]
     assert session_id

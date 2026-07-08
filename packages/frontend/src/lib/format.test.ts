@@ -21,7 +21,7 @@ describe("formatUptime", () => {
     expect(formatUptime(iso((2 * 60 + 15) * 60_000, now), now)).toBe("2h 15m");
   });
   it("renders days + hours beyond a day", () => {
-    expect(formatUptime(iso((26 * 60) * 60_000, now), now)).toBe("1d 2h");
+    expect(formatUptime(iso(26 * 60 * 60_000, now), now)).toBe("1d 2h");
   });
   it("clamps future timestamps to 0s, never negative", () => {
     expect(formatUptime(iso(-5000, now), now)).toBe("0s");

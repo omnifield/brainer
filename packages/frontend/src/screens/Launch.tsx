@@ -1,8 +1,8 @@
-import { For, createSignal, type JSX } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { useFleet } from "../store/fleet";
+import { createSignal, For, type JSX } from "solid-js";
 import { KNOWN_REPOS, KNOWN_SCOPES } from "../api/mock/fixtures";
 import { toast } from "../lib/toast";
+import { useFleet } from "../store/fleet";
 
 // Launch — spawn a session. Pick repo + scope (+ optional brief) → POST /sessions
 // through the store, then jump to its detail. No business logic here beyond form

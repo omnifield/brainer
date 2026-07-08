@@ -28,9 +28,7 @@ export function onSpan(sink: (span: TraceSpan) => void): () => void {
 function emit(span: TraceSpan): void {
   if (enabled) {
     // Why: one-line span so the request seam is legible in the dev console.
-    console.debug(
-      `[trace] ${span.name} ${span.durationMs.toFixed(1)}ms ${span.ok ? "ok" : "ERR"}`,
-    );
+    console.debug(`[trace] ${span.name} ${span.durationMs.toFixed(1)}ms ${span.ok ? "ok" : "ERR"}`);
   }
   for (const sink of sinks) sink(span);
 }

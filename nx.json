@@ -45,6 +45,6 @@
       "!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
       "!{projectRoot}/vitest.setup.ts"
     ],
-    "sharedGlobals": []
+    "sharedGlobals": ["{workspaceRoot}/biome.json"]
   }
 }

@@ -8,7 +8,7 @@ optional field (Prometheus metrics, per the backend brief) — non-breaking, pen
 
 from __future__ import annotations
 
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
@@ -42,7 +42,7 @@ class Session(CamelModel):
 
 class Task(CamelModel):
     id: str
-    session_id: Optional[str] = None
+    session_id: str | None = None
     title: str
     status: TaskStatus
 
@@ -57,9 +57,9 @@ class Metrics(CamelModel):
 
 
 class SessionDetail(Session):
-    brief: Optional[str] = None
+    brief: str | None = None
     tasks: list[Task] = []
-    metrics: Optional[Metrics] = None
+    metrics: Metrics | None = None
 
 
 class ActivityEvent(CamelModel):
@@ -68,7 +68,7 @@ class ActivityEvent(CamelModel):
     tool: str
     summary: str
     at: str
-    status: Optional[SessionStatus] = None
+    status: SessionStatus | None = None
 
 
 # ---- request payloads ----
@@ -77,21 +77,21 @@ class ActivityEvent(CamelModel):
 class CreateSessionInput(CamelModel):
     repo: str
     scope: str
-    brief_path: Optional[str] = None
+    brief_path: str | None = None
 
 
 class AssignBriefInput(CamelModel):
-    brief_path: Optional[str] = None
-    brief_text: Optional[str] = None
+    brief_path: str | None = None
+    brief_text: str | None = None
 
 
 class CreateTaskInput(CamelModel):
-    session_id: Optional[str] = None
+    session_id: str | None = None
     title: str
-    status: Optional[TaskStatus] = None
+    status: TaskStatus | None = None
 
 
 class UpdateTaskInput(CamelModel):
-    title: Optional[str] = None
-    status: Optional[TaskStatus] = None
-    session_id: Optional[str] = None
+    title: str | None = None
+    status: TaskStatus | None = None
+    session_id: str | None = None

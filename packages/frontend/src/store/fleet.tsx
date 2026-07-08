@@ -1,8 +1,4 @@
-import {
-  createContext,
-  useContext,
-  type JSX,
-} from "solid-js";
+import { createContext, type JSX, useContext } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import type { ApiClient } from "../api/client";
 import type {
@@ -42,9 +38,7 @@ export interface FleetActions {
   stopLive(): void;
 }
 
-export function createFleetStore(
-  client: ApiClient,
-): [FleetState, FleetActions] {
+export function createFleetStore(client: ApiClient): [FleetState, FleetActions] {
   const [state, setState] = createStore<FleetState>({
     sessions: [],
     tasks: [],
@@ -80,10 +74,7 @@ export function createFleetStore(
   const actions: FleetActions = {
     async load() {
       try {
-        const [sessions, tasks] = await Promise.all([
-          client.listSessions(),
-          client.listTasks(),
-        ]);
+        const [sessions, tasks] = await Promise.all([client.listSessions(), client.listTasks()]);
         setState({ sessions, tasks, loaded: true, error: null });
       } catch (err) {
         setState("error", String(err));
@@ -143,10 +134,7 @@ const FleetContext = createContext<{
   client: ApiClient;
 }>();
 
-export function FleetProvider(props: {
-  client: ApiClient;
-  children: JSX.Element;
-}): JSX.Element {
+export function FleetProvider(props: { client: ApiClient; children: JSX.Element }): JSX.Element {
   const [state, actions] = createFleetStore(props.client);
   return (
     <FleetContext.Provider value={{ state, actions, client: props.client }}>
