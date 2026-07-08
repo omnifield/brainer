@@ -1,8 +1,8 @@
-import { For, Show, createSignal, type JSX } from "solid-js";
 import { A } from "@solidjs/router";
-import { useFleet } from "../store/fleet";
-import { TASK_STATUSES, TASK_STATUS_LABEL } from "../lib/format";
+import { createSignal, For, type JSX, Show } from "solid-js";
 import type { Task, TaskStatus } from "../api/types";
+import { TASK_STATUS_LABEL, TASK_STATUSES } from "../lib/format";
+import { useFleet } from "../store/fleet";
 
 // Task board — every task across every session, as a kanban. Interactive: add a
 // task, change status via the per-card select (writes through the contract).
@@ -48,7 +48,11 @@ export function TaskBoard(): JSX.Element {
         >
           <option value="">Unassigned</option>
           <For each={state.sessions}>
-            {(s) => <option value={s.id}>{s.scope} · {s.repo}</option>}
+            {(s) => (
+              <option value={s.id}>
+                {s.scope} · {s.repo}
+              </option>
+            )}
           </For>
         </select>
         <button type="submit" class="btn btn-primary">
@@ -67,12 +71,14 @@ export function TaskBoard(): JSX.Element {
               <div class="col-body">
                 <Show
                   when={byStatus(status).length > 0}
-                  fallback={<span class="faint" style={{ padding: "4px" }}>—</span>}
+                  fallback={
+                    <span class="faint" style={{ padding: "4px" }}>
+                      —
+                    </span>
+                  }
                 >
                   <For each={byStatus(status)}>
-                    {(t) => (
-                      <TaskCard task={t} scope={sessionScope(t.sessionId)} />
-                    )}
+                    {(t) => <TaskCard task={t} scope={sessionScope(t.sessionId)} />}
                   </For>
                 </Show>
               </div>
@@ -90,10 +96,7 @@ function TaskCard(props: { task: Task; scope: string }): JSX.Element {
     <div class="tcard">
       <div class="ttitle">{props.task.title}</div>
       <div class="tmeta">
-        <Show
-          when={props.task.sessionId}
-          fallback={<span class="faint">unassigned</span>}
-        >
+        <Show when={props.task.sessionId} fallback={<span class="faint">unassigned</span>}>
           <A href={`/sessions/${props.task.sessionId}`} class="mono">
             {props.scope}
           </A>
@@ -105,9 +108,7 @@ function TaskCard(props: { task: Task; scope: string }): JSX.Element {
             actions.setTaskStatus(props.task.id, e.currentTarget.value as TaskStatus)
           }
         >
-          <For each={TASK_STATUSES}>
-            {(s) => <option value={s}>{TASK_STATUS_LABEL[s]}</option>}
-          </For>
+          <For each={TASK_STATUSES}>{(s) => <option value={s}>{TASK_STATUS_LABEL[s]}</option>}</For>
         </select>
       </div>
     </div>

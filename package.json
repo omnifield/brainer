@@ -1,0 +1,24 @@
+{
+  "name": "@omnifield/brainer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Omnifield Brainer — agent orchestration product (workspace root)",
+  "packageManager": "pnpm@10.11.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "prepare": "husky",
+    "build": "nx run-many -t build",
+    "test": "nx run-many -t test,test:py",
+    "typecheck": "nx run-many -t typecheck",
+    "lint": "nx run-many -t lint,lint:py",
+    "affected": "nx affected -t lint,typecheck,test,build"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.3",
+    "husky": "^9.1.7",
+    "nx": "^23.0.1"
+  }
+}

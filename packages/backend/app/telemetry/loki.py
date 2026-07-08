@@ -13,8 +13,8 @@ the parsers are pure and unit-tested so that tuning is local.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -25,12 +25,12 @@ _QUERY_RANGE = "/loki/api/v1/query_range"
 
 
 def ns_to_iso(ns: str | int) -> str:
-    return datetime.fromtimestamp(int(ns) / 1_000_000_000, tz=timezone.utc).isoformat()
+    return datetime.fromtimestamp(int(ns) / 1_000_000_000, tz=UTC).isoformat()
 
 
 def _activity_from(line: str, labels: dict[str, str]) -> tuple[str, str]:
     """(tool, summary) from one log line + its stream labels. Best-effort, pure."""
-    record: Optional[dict[str, Any]] = None
+    record: dict[str, Any] | None = None
     try:
         parsed = json.loads(line)
         if isinstance(parsed, dict):
@@ -59,9 +59,9 @@ def _activity_from(line: str, labels: dict[str, str]) -> tuple[str, str]:
     return tool, line
 
 
-def parse_latest_activity(payload: dict[str, Any]) -> Optional[Activity]:
+def parse_latest_activity(payload: dict[str, Any]) -> Activity | None:
     """Newest activity across all streams in a query_range response, or None."""
-    best: Optional[tuple[int, str, dict[str, str]]] = None
+    best: tuple[int, str, dict[str, str]] | None = None
     for stream in payload.get("data", {}).get("result", []):
         labels = stream.get("stream", {})
         for ns, line in stream.get("values", []):

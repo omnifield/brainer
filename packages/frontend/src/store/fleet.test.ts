@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
 import { createRoot } from "solid-js";
-import { createFleetStore } from "./fleet";
+import { describe, expect, it } from "vitest";
 import { MockApiClient } from "../api/mock/mockClient";
 import type { ActivityEvent } from "../api/types";
+import { createFleetStore } from "./fleet";
 
 const FIXED_NOW = Date.UTC(2026, 6, 7, 12, 0, 0);
 const client = () => new MockApiClient({ tickMs: 0, now: () => FIXED_NOW, rand: () => 0.5 });

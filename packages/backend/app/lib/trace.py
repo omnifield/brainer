@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager, contextmanager
 from functools import wraps
-from typing import Awaitable, Callable, TypeVar
+from typing import TypeVar
 
 logger = logging.getLogger("brainer.trace")
 
@@ -44,7 +45,7 @@ async def aspan(name: str, **fields: object):
         _emit(name, start, ok, fields)
 
 
-async def traced(name: str, fn: Callable[[], Awaitable[T]], **fields: object) -> T:
+async def traced[T](name: str, fn: Callable[[], Awaitable[T]], **fields: object) -> T:
     """Trace a single async thunk — `await traced("loki.query", lambda: client.get(...))`."""
     async with aspan(name, **fields):
         return await fn()

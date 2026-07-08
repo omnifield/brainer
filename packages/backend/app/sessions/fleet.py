@@ -7,7 +7,6 @@ Loki (sessions started outside this backend). Registry entries win on scope coll
 from __future__ import annotations
 
 import time
-from typing import Optional
 
 from ..config import Settings, role_for_scope
 from ..lib.trace import aspan
@@ -61,7 +60,7 @@ class FleetService:
                     seen_scopes.add(scope)
             return out
 
-    async def get_session(self, session_id: str) -> Optional[SessionDetail]:
+    async def get_session(self, session_id: str) -> SessionDetail | None:
         async with aspan("fleet.get_session", id=session_id):
             launched = self._registry.get(session_id)
             if launched is not None:
@@ -100,7 +99,7 @@ class FleetService:
             last_activity=activity or _spawned_activity(launched.started_at),
         )
 
-    async def _discovered_session(self, scope: str) -> Optional[Session]:
+    async def _discovered_session(self, scope: str) -> Session | None:
         activity = await self._telemetry.activity(scope)
         if activity is None:
             return None
@@ -151,7 +150,7 @@ class FleetService:
         self._provider.stop(launched.handle)
         return True
 
-    def scope_of(self, session_id: str) -> Optional[str]:
+    def scope_of(self, session_id: str) -> str | None:
         launched = self._registry.get(session_id)
         if launched is not None:
             return launched.scope

@@ -1,3 +1,4 @@
+import { traced } from "../../lib/trace";
 import type { ApiClient } from "../client";
 import type {
   ActivityEvent,
@@ -11,7 +12,6 @@ import type {
   Unsubscribe,
   UpdateTaskInput,
 } from "../types";
-import { traced } from "../../lib/trace";
 import { KNOWN_REPOS, SCOPE_ROLE, seedSessions, seedTasks } from "./fixtures";
 
 // In-memory implementation of the ApiClient contract. Holds fleet state, answers

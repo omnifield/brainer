@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+# Commit-каденс (POLICY): этап → проверка → коммит. Быстрый гейт — lint + typecheck
+# только по затронутому. Bypass (emergency only): git commit --no-verify
+
+echo ""
+echo "[pre-commit] nx affected lint + typecheck (base=origin/main)…"
+
+pnpm nx affected -t lint,lint:py,typecheck --base=origin/main || {
+  echo ""
+  echo "  [pre-commit] FAILED — lint/typecheck красные на затронутом."
+  echo "  Bypass (emergency only): git commit --no-verify"
+  echo ""
+  exit 1
+}

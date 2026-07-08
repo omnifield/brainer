@@ -1,17 +1,10 @@
-import {
-  For,
-  Show,
-  createSignal,
-  createResource,
-  onCleanup,
-  type JSX,
-} from "solid-js";
-import { useParams, useNavigate, A } from "@solidjs/router";
-import { useFleet } from "../store/fleet";
+import { A, useNavigate, useParams } from "@solidjs/router";
+import { createResource, createSignal, For, type JSX, onCleanup, Show } from "solid-js";
+import type { ActivityEvent } from "../api/types";
 import { StatusBadge, TaskBadge } from "../components/StatusBadge";
 import { formatRelative, formatUptime, isTerminal } from "../lib/format";
 import { toast } from "../lib/toast";
-import type { ActivityEvent } from "../api/types";
+import { useFleet } from "../store/fleet";
 
 // Session detail — live activity feed + brief + tasks + stop/assign controls.
 // Loads the detail via the contract, then tails the stream to grow the feed.
@@ -70,6 +63,7 @@ export function SessionDetail(): JSX.Element {
             <div class="row">
               <StatusBadge status={liveSession()?.status ?? d().status} />
               <button
+                type="button"
                 class="btn btn-danger btn-sm"
                 disabled={isTerminal(liveSession()?.status ?? d().status)}
                 onClick={stop}
@@ -160,7 +154,10 @@ export function SessionDetail(): JSX.Element {
 
           <Show when={!liveSession()}>
             <p class="faint" style={{ "margin-top": "16px" }}>
-              Session not in fleet list — <button class="btn btn-sm" onClick={() => navigate("/")}>back to Fleet</button>
+              Session not in fleet list —{" "}
+              <button type="button" class="btn btn-sm" onClick={() => navigate("/")}>
+                back to Fleet
+              </button>
             </p>
           </Show>
         </>

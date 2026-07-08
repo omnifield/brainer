@@ -36,7 +36,11 @@ export function seedSessions(): Session[] {
       status: "blocked",
       model: "claude-sonnet-5",
       startedAt: ago(210),
-      lastActivity: { tool: "prompt", at: ago(12), summary: "escalation: provider contract unclear" },
+      lastActivity: {
+        tool: "prompt",
+        at: ago(12),
+        summary: "escalation: provider contract unclear",
+      },
     },
     {
       id: "s-writer-be",

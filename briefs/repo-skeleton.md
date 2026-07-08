@@ -1,5 +1,10 @@
 # Brief — Repo Skeleton (эталон продукт-репо: pnpm + nx + uv workspace + CI)
 
+> ✅ **ЗАКРЫТ** (2026-07-08, PR `feat/repo-skeleton`). Все шаги выполнены, DoD пройден:
+> run-many зелёный (обе экосистемы), повторный прогон из nx-кэша, чистый клон проверен,
+> husky-гейты живые, CI на PR. Отклонения от плана — в описании PR (ruff 120 колонок +
+> immutable-calls для FastAPI; механическая lint-база по коду зон).
+
 | | |
 |---|---|
 | **Scope** | shared infra (root-конфиги + `.github/` + минимальные правки package-конфигов зон) — зона **architect** |

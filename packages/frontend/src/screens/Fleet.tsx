@@ -1,8 +1,8 @@
-import { For, Show, type JSX } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { useFleet } from "../store/fleet";
+import { For, type JSX, Show } from "solid-js";
 import { StatusBadge } from "../components/StatusBadge";
 import { formatRelative, formatUptime } from "../lib/format";
+import { useFleet } from "../store/fleet";
 
 // Fleet — the main screen. Every session at a glance: the "don't lose control"
 // core. Dumb: reads store state, renders. Live activity flows in via the store's
@@ -22,7 +22,7 @@ export function Fleet(): JSX.Element {
             {state.sessions.length} sessions · {active()} working
           </p>
         </div>
-        <button class="btn btn-primary" onClick={() => navigate("/launch")}>
+        <button type="button" class="btn btn-primary" onClick={() => navigate("/launch")}>
           + Launch session
         </button>
       </div>

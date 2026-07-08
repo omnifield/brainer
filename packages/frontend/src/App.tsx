@@ -1,8 +1,8 @@
-import { For, Show, onMount, type JSX } from "solid-js";
 import { A, useLocation } from "@solidjs/router";
-import { FleetProvider, useFleet } from "./store/fleet";
+import { For, type JSX, onMount, Show } from "solid-js";
 import { api } from "./api";
 import { toastMessage } from "./lib/toast";
+import { FleetProvider, useFleet } from "./store/fleet";
 
 // App shell: provides the fleet store, boots data + live streams once, and frames
 // every route with the sidebar. Route screens render into {props.children}.

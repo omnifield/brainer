@@ -8,9 +8,8 @@ the seam settles.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from ..providers.base import LaunchHandle
 
@@ -24,7 +23,7 @@ class LaunchedSession:
     model: str
     handle: LaunchHandle
     started_at: str
-    brief: Optional[str] = None
+    brief: str | None = None
 
 
 class SessionRegistry:
@@ -39,7 +38,7 @@ class SessionRegistry:
     def add(self, session: LaunchedSession) -> None:
         self._by_id[session.id] = session
 
-    def get(self, session_id: str) -> Optional[LaunchedSession]:
+    def get(self, session_id: str) -> LaunchedSession | None:
         return self._by_id.get(session_id)
 
     def all(self) -> list[LaunchedSession]:
@@ -50,4 +49,4 @@ class SessionRegistry:
 
 
 def now_iso() -> str:
-    return datetime.now(tz=timezone.utc).isoformat()
+    return datetime.now(tz=UTC).isoformat()
