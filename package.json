@@ -1,0 +1,11 @@
+{
+  "name": "@omnifield/brainer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Omnifield Brainer — agent orchestration product (workspace root)",
+  "packageManager": "pnpm@10.11.0",
+  "engines": {
+    "node": ">=22"
+  }
+}
