@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+# Гейт перед remote (канон §0 «эталон работает»): test + build по затронутому.
+# Bypass (emergency only): git push --no-verify
+
+echo ""
+echo "[pre-push] nx affected test + build (base=origin/main)…"
+
+pnpm nx affected -t test,test:py,build --base=origin/main || {
+  echo ""
+  echo "  [pre-push] FAILED — test/build красные на затронутом. Не пушим сломанное."
+  echo "  Bypass (emergency only): git push --no-verify"
+  echo ""
+  exit 1
+}
