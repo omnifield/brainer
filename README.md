@@ -5,8 +5,10 @@
 позже) через интерфейс, а не жонглируя терминалами. Мы — юзер №0 (brainer'ом ведём
 разработку всех продуктов, включая сам brainer).
 
-> Статус: **bootstrap** (founding-скелет). Рабочее имя (sweep: `brainer` в AI/софте плотно
-> занят — вернёмся к публичному имени перед релизом). Реализация — по брифам (`briefs/`).
+> Статус: **skeleton done** — pnpm workspace + nx (affected/cache) + uv workspace + biome/ruff
+> + CI + husky (`briefs/repo-skeleton.md`); тулчейн запинен (машина = cattle, канон
+> commons toolchain-pins). Рабочее имя (sweep: `brainer` в AI/софте плотно занят — вернёмся
+> к публичному имени перед релизом). Реализация — по брифам (`briefs/`).
 
 ## Ключевая идея — agent-as-provider
 

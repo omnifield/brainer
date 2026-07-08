@@ -47,7 +47,7 @@ cd <capsule>/docker/observability && docker compose up -d
 # 2. backend
 cd packages/backend && uv run uvicorn <app> --host 0.0.0.0 --port 8010 --reload
 # 3. frontend
-cd packages/frontend && npm run dev   # vite на :3500, VITE_API_BASE=http://localhost:8010/brainer
+cd packages/frontend && pnpm dev   # vite на :3500, VITE_API_BASE=http://localhost:8010/brainer
 ```
 Открываешь `http://localhost:3500` — дашборд на реальном backend'е.
 
