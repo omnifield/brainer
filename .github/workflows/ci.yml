@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  node:
+    name: Node (nx affected lint/typecheck/test/build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # nx affected needs history to diff against the base branch.
+          fetch-depth: 0
+      # Версия pnpm — из packageManager root package.json (пин, toolchain-pins).
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: nrwl/nx-set-shas@v4
+      - run: pnpm nx affected -t lint,typecheck,test,build
+
+  python:
+    name: Python (ruff + pytest, backend)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/backend
+    steps:
+      - uses: actions/checkout@v6
+      # Версия uv — под required-version root pyproject.toml; CPython — из .python-version.
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.x"
+          enable-cache: true
+      - name: Sync deps (uv workspace member + dev group)
+        run: uv sync --dev
+      - name: Lint (ruff)
+        run: uv run ruff check .
+      - name: Test (pytest)
+        run: uv run pytest -q
