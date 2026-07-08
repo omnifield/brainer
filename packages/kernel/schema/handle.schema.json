@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Persistable reference to a session (blueprint §1.3, В2).\n\n`session_id` is OURS. `provider_state` is opaque adapter JSON (for claude-code:\nsdk_session_id / cwd / config_dir) — the kernel never looks inside it.",
+  "properties": {
+    "session_id": {
+      "title": "Session Id",
+      "type": "string"
+    },
+    "provider": {
+      "title": "Provider",
+      "type": "string"
+    },
+    "provider_state": {
+      "additionalProperties": true,
+      "title": "Provider State",
+      "type": "object"
+    }
+  },
+  "required": [
+    "session_id",
+    "provider"
+  ],
+  "title": "AgentSessionHandle",
+  "type": "object"
+}

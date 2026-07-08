@@ -1,0 +1,39 @@
+# omnifield-kernel — agent-as-provider seam. Standalone library (importable), src-layout.
+# NOTE: intentionally NOT yet a member of the root uv workspace (root pyproject comments
+# "kernel/orchestrator станут members при extract"). Wiring kernel into backend's env is the
+# backend/architect step; here we stay self-contained and test in our own isolated env.
+
+[project]
+name = "omnifield-kernel"
+version = "0.1.0"
+description = "agent-as-provider seam — provider-agnostic agent-session contract (events, operations, handle, session registry)"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.9",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.12",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.uv]
+# Library: build + install into the env so tests import the packaged module.
+package = true
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
