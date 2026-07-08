@@ -10,7 +10,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from app.config import Settings
+from app.config import Repo, Settings
 from app.deps import build_deps
 from app.main import create_app
 from app.providers.base import LaunchHandle
@@ -35,9 +35,12 @@ class _FakePopen:
 
 
 @pytest.fixture
-def client():
+def client(tmp_path):
+    # Inject the registry so the contract tests don't depend on the machine's repo layout.
+    (tmp_path / "claude-scope.ps1").write_text("# stub launcher")
+    repos = {"omnifield/brainer": Repo(name="omnifield/brainer", path=tmp_path)}
     http = httpx.AsyncClient(transport=httpx.MockTransport(_telemetry_handler))
-    deps = build_deps(Settings(), http=http)
+    deps = build_deps(Settings(repos=repos), http=http)
     # Stub the spawn so tests never launch a real powershell/claude process.
     deps.provider.launch = lambda **kw: LaunchHandle(  # type: ignore[method-assign]
         scope=kw["scope"], package=kw["scope"], repo=kw["repo_name"], pid=4242, popen=_FakePopen()
