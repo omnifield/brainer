@@ -1,0 +1,9 @@
+# uv workspace root (virtual — не пакет). Канон: commons toolchain-pins.
+# kernel/orchestrator станут members при extract (см. briefs/repo-skeleton.md шаг 4).
+
+[tool.uv]
+# Пин самого uv — self-enforcing (escalation-toolchain-pins §1).
+required-version = ">=0.11,<0.12"
+
+[tool.uv.workspace]
+members = ["packages/backend"]

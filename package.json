@@ -7,5 +7,15 @@
   "packageManager": "pnpm@10.11.0",
   "engines": {
     "node": ">=22"
+  },
+  "scripts": {
+    "build": "nx run-many -t build",
+    "test": "nx run-many -t test,test:py",
+    "typecheck": "nx run-many -t typecheck",
+    "lint": "nx run-many -t lint",
+    "affected": "nx affected -t lint,typecheck,test,build"
+  },
+  "devDependencies": {
+    "nx": "^23.0.1"
   }
 }

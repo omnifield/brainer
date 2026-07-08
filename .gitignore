@@ -15,6 +15,7 @@ node_modules/
 dist/
 .vite/
 *.local
+.nx/
 
 # OS / editor
 .DS_Store
