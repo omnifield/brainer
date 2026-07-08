@@ -6,7 +6,8 @@ import solid from "vite-plugin-solid";
 // tests exercise the real component output, not a divergent build.
 export default defineConfig({
   plugins: [solid()],
-  server: { port: 5173 },
+  server: { port: 3500, strictPort: true },
+  preview: { port: 3500, strictPort: true },
   test: {
     environment: "jsdom",
     globals: true,
