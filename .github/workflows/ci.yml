@@ -39,7 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       # Версия uv — под required-version root pyproject.toml; CPython — из .python-version.
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "0.11.x"
           enable-cache: true
