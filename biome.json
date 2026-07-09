@@ -1,5 +1,6 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "extends": ["@omnifield/biome-preset/biome.json"],
   "files": {
     "includes": [
       "**",
@@ -10,29 +11,8 @@
       "!**/.nx",
       "!**/coverage",
       "!**/.claude",
-      "!**/pnpm-lock.yaml"
+      "!**/pnpm-lock.yaml",
+      "!packages/kernel/schema"
     ]
-  },
-  "assist": { "actions": { "source": { "organizeImports": "on" } } },
-  "linter": {
-    "enabled": true,
-    "rules": {
-      "recommended": true
-    }
-  },
-  "formatter": {
-    "enabled": true,
-    "formatWithErrors": false,
-    "indentStyle": "space",
-    "indentWidth": 2,
-    "lineEnding": "lf",
-    "lineWidth": 100
-  },
-  "javascript": {
-    "formatter": {
-      "quoteStyle": "double",
-      "trailingCommas": "all",
-      "semicolons": "always"
-    }
   }
 }

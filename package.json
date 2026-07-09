@@ -11,14 +11,16 @@
   "scripts": {
     "prepare": "husky",
     "build": "nx run-many -t build",
-    "test": "nx run-many -t test,test:py",
+    "test": "nx run-many -t test test:py",
     "typecheck": "nx run-many -t typecheck",
-    "lint": "nx run-many -t lint,lint:py",
-    "affected": "nx affected -t lint,typecheck,test,build",
+    "lint": "nx run-many -t lint lint:py",
+    "affected": "nx affected -t lint typecheck test build",
     "hygiene": "sherif"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.3",
+    "@omnifield/biome-preset": "^0.1.1",
+    "@omnifield/nx-preset": "^0.1.1",
     "husky": "^9.1.7",
     "nx": "^23.0.1",
     "sherif": "^1.13.0"

@@ -11,6 +11,12 @@ importers:
       '@biomejs/biome':
         specifier: ^2.5.3
         version: 2.5.3
+      '@omnifield/biome-preset':
+        specifier: ^0.1.1
+        version: 0.1.1
+      '@omnifield/nx-preset':
+        specifier: ^0.1.1
+        version: 0.1.1
       husky:
         specifier: ^9.1.7
         version: 9.1.7
@@ -473,6 +479,12 @@ packages:
     resolution: {integrity: sha512-TE/wvBa2cpkVXmk/AXUQAneong4JReS2hyNpAUONKG1yXU7TDKe0wvn1xQXxAbyspudT9NuCnVtpVuEkRz8S+Q==}
     cpu: [x64]
     os: [win32]
+
+  '@omnifield/biome-preset@0.1.1':
+    resolution: {integrity: sha512-QvUY3puHngrYEW7HtVc0pWpek70qfksuebROY3JEOURh8Z2HgJK9UdyzZdeiXKZuLy7UqLZg7prcbfLc2dVZUw==, tarball: https://npm.pkg.github.com/download/@omnifield/biome-preset/0.1.1/6aa7022388fca36645c59148cda8de7b46675066}
+
+  '@omnifield/nx-preset@0.1.1':
+    resolution: {integrity: sha512-OxWqkAF6Rzs2X/2zSUbMTNOq4axy2eG5GhzzXYpcVp9CTApf7axpPlDl8Iu5eBvBb+L0Zs4drUce9UFivVozcQ==, tarball: https://npm.pkg.github.com/download/@omnifield/nx-preset/0.1.1/2b364e0b2d71a58780573db787bea2ecd4022074}
 
   '@rollup/rollup-android-arm-eabi@4.62.2':
     resolution: {integrity: sha512-6o7ZLZK+BeenkZCFNDXqpbjw9bD6nuWonvS/lwQJp7NoVVxm6p3qE7qQ5jGuBjiFsgvqjD8mZAU5oWxTmbOeOg==}
@@ -2019,6 +2031,10 @@ snapshots:
 
   '@nx/nx-win32-x64-msvc@23.0.1':
     optional: true
+
+  '@omnifield/biome-preset@0.1.1': {}
+
+  '@omnifield/nx-preset@0.1.1': {}
 
   '@rollup/rollup-android-arm-eabi@4.62.2':
     optional: true
