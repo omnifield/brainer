@@ -11,9 +11,12 @@ concurrency:
   cancel-in-progress: true
 
 # Права задаёт caller — reusable расширить их не может; без actions:read падает nx-set-shas.
+# packages:read обязателен: явный permissions-блок ОБНУЛЯЕТ неперечисленное, а без него
+# pnpm install ловит 403 на @omnifield/* даже с публичными пакетами (грабля сниппета брифа).
 permissions:
   contents: read
   actions: read
+  packages: read
 
 jobs:
   # Node-контур — reusable devopser (skeleton D1): hygiene (sherif) + nx affected +
