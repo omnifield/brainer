@@ -97,7 +97,7 @@ function TaskCard(props: { task: Task; scope: string }): JSX.Element {
       <div class="ttitle">{props.task.title}</div>
       <div class="tmeta">
         <Show when={props.task.sessionId} fallback={<span class="faint">unassigned</span>}>
-          <A href={`/sessions/${props.task.sessionId}`} class="mono">
+          <A href={`/s/${props.task.sessionId}`} class="mono">
             {props.scope}
           </A>
         </Show>

@@ -32,7 +32,7 @@ export function Launch(): JSX.Element {
         brief: briefPath().trim() || undefined,
       });
       toast(`Session ${id} spawned`);
-      navigate(`/sessions/${id}`);
+      navigate(`/s/${id}`);
     } catch (err) {
       setError(String(err));
     } finally {

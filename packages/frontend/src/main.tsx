@@ -17,7 +17,9 @@ render(
     <Router root={AppLayout}>
       <Route path="/" component={Fleet} />
       <Route path="/launch" component={Launch} />
-      <Route path="/sessions/:id" component={SessionDetail} />
+      {/* SPA session route lives under /s/* (not /sessions/*) so it never collides with the
+          backend API namespace behind one origin — a hard refresh serves the app, not the API. */}
+      <Route path="/s/:id" component={SessionDetail} />
       <Route path="/board" component={TaskBoard} />
     </Router>
   ),

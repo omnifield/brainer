@@ -54,10 +54,13 @@ export function reduceEvent(state: ChatState, event: wire.AgentSessionEvent): Ch
   const next: ChatState = { ...state, lastSeq: event.seq };
 
   switch (event.type) {
-    // Content the agent produces → it is actively working.
+    // Content the agent produces → it is actively working. A wire user message is the backend's
+    // echo of our own send (Ф2) — reconcile it against the optimistic copy so replay can't dupe it.
     case "message":
       next.working = true;
-      return append(next, { kind: "message", key: keyOf(event), event });
+      return event.payload.role === "user"
+        ? foldUserMessage(next, event)
+        : append(next, { kind: "message", key: keyOf(event), event });
     case "thinking":
       next.working = true;
       return append(next, { kind: "thinking", key: keyOf(event), event });
@@ -70,9 +73,11 @@ export function reduceEvent(state: ChatState, event: wire.AgentSessionEvent): Ch
       next.sessionState = event.payload.state;
       next.working = event.payload.state === "starting" || event.payload.state === "running";
       return append(next, { kind: "status", key: keyOf(event), event });
-    // Terminal / paused signals → not working.
+    // Terminal / paused signals → not working. Mirror the backend's status projection (Ф3): a
+    // done turn leaves the session waiting for input, unless it was explicitly stopped.
     case "done":
       next.working = false;
+      next.sessionState = event.payload.reason === "stopped" ? "stopped" : "waiting";
       return append(next, { kind: "done", key: keyOf(event), event });
     case "error":
       next.working = false;
@@ -118,6 +123,25 @@ function keyOf(event: wire.AgentSessionEvent): string {
 
 function append(state: ChatState, item: FeedItem): ChatState {
   return { ...state, items: [...state.items, item] };
+}
+
+/**
+ * Reconcile a wire user message against its optimistic echo (Ф2): drop the first pending optimistic
+ * (`local-*`) user item with the same text, then append the wire item (which carries a real seq, so
+ * it survives reconnect/replay). No optimistic match (e.g. reconnect on a fresh reducer) → plain
+ * append. Matching on text is enough here; identical back-to-back sends just evict in order.
+ */
+function foldUserMessage(state: ChatState, event: wire.MessageEvent): ChatState {
+  const idx = state.items.findIndex(
+    (it) =>
+      it.kind === "message" &&
+      it.key.startsWith("local-") &&
+      it.event.payload.role === "user" &&
+      it.event.payload.text === event.payload.text,
+  );
+  const items = idx === -1 ? state.items.slice() : state.items.filter((_, i) => i !== idx);
+  items.push({ kind: "message", key: keyOf(event), event });
+  return { ...state, items };
 }
 
 /** Attach a tool-result to its pending tool row (matched by call_id); orphan results start a new row. */

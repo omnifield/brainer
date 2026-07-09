@@ -44,7 +44,7 @@ export function Fleet(): JSX.Element {
             <tbody>
               <For each={state.sessions}>
                 {(s) => (
-                  <tr onClick={() => navigate(`/sessions/${s.session_id}`)}>
+                  <tr onClick={() => navigate(`/s/${s.session_id}`)}>
                     <td class="mono">{s.role}</td>
                     <td class="mono dim">{s.repo}</td>
                     <td>

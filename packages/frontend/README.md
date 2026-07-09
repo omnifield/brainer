@@ -24,6 +24,8 @@ screens/SessionDetail.tsx  ── только композиция (ChatFeed + 
 ```
 
 Отправка: `SendBox → useChat.send` — оптимистичный эхо в ленту + `POST /sessions/:id/messages`.
+Backend эмиттит `message{role:user}` в стрим (Ф2), редьюсер при его приходе вытесняет оптимистичный
+элемент → после reconnect/replay реплика юзера цела и не дублируется.
 Reconnect: нативный `EventSource` сам шлёт `Last-Event-ID` (последний `seq`) → backend отдаёт
 пропущенное; редьюсер дедупит по `seq` → без потерь и без дублей.
 
@@ -65,6 +67,18 @@ src/
   index.css         # прото-токены (--chat-*) — компоненты ссылаются на переменные, ноль инлайн-стилей
 ```
 
+## Роутинг и неймспейсы (за одним origin)
+
+API-поверхность backend'а — `/sessions/*` и `/api/*`. **SPA-роут сессии живёт под `/s/:id`**, не
+под `/sessions/:id` — иначе hard-refresh на клиентском роуте `/sessions/:id` уходит в backend и
+отдаёт `{"detail":"Not Found"}` вместо приложения (Ф1). Развод неймспейсов структурен (не
+Accept-sniffing), поэтому одинаково держится в dev (Vite-proxy) и в prod:
+
+- **dev**: Vite проксирует `/sessions` + `/api` → :8000; всё прочее (`/`, `/s/*`, `/launch`,
+  `/board`) — SPA-fallback на `index.html`.
+- **prod (один origin)**: reverse-proxy обязан отдавать `/sessions/*` + `/api/*` в backend, а всё
+  остальное — на `index.html` (SPA-fallback). `/s/*` в backend НЕ уходит.
+
 ## Запуск
 
 ```bash
@@ -82,5 +96,6 @@ pnpm --filter @omnifield/brainer-frontend dev     # :5173, проксирует 
 - Контракт событий/ручек не устраивает → STOP + architect. Типы руками поверх генерированных не пишем.
 - `output`/`input` в схеме нетипизированы (arbitrary JSON) → генератор рендерит их открытым
   объектом; вью стрингифаит. Точная типизация — вопрос к kernel-схеме (низкий приоритет).
-- Живой e2e со стримом реального агента — browser-eyeball product owner'а (спавнит биллинговую
-  сессию + правит файлы в управляемом репо; автономно не запускаем).
+- Живой e2e со стримом реального агента прогнан архитектором на ревью (haiku-сессия: стрим →
+  send → reconnect без дублей → stop). Owner автономно не спавнит биллинговую сессию, правящую
+  управляемый репо — это browser-eyeball product owner'а.

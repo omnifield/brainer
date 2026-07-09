@@ -10,7 +10,7 @@
       "!**/.vite",
       "!**/.nx",
       "!**/coverage",
-      "!src/api/generated/**"
+      "!src/api/generated"
     ]
   }
 }

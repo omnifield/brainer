@@ -215,3 +215,41 @@ describe("reduceLocalUserMessage — optimistic echo", () => {
     expect(after.lastSeq).toBe(8);
   });
 });
+
+describe("reduceEvent — done mirrors the server status projection (Ф3)", () => {
+  it("done(completed|max-turns) → waiting; done(stopped) → stopped", () => {
+    const running = reduceEvent(initialChatState(), status("running"));
+    expect(reduceEvent(running, done("completed")).sessionState).toBe("waiting");
+    expect(reduceEvent(running, done("max-turns")).sessionState).toBe("waiting");
+    expect(reduceEvent(running, done("stopped")).sessionState).toBe("stopped");
+  });
+});
+
+describe("reduceEvent — wire user echo reconciles the optimistic copy (Ф2)", () => {
+  it("a wire user message evicts the matching optimistic item (no duplicate)", () => {
+    const optimistic = reduceLocalUserMessage(initialChatState(), "ship it");
+    expect(optimistic.items).toHaveLength(1);
+    const wired = reduceEvent(optimistic, message("ship it", "user", 5));
+    const userRows = wired.items.filter((i) => i.kind === "message");
+    expect(userRows).toHaveLength(1);
+    expect(userRows[0].key).toBe("ev-5"); // the wire item (real seq), not the local-* echo
+  });
+
+  it("survives reconnect replay without duplicating the user echo", () => {
+    // Live: optimistic → wire echo (seq 9) reconciles it → agent reply (seq 10).
+    let state = reduceLocalUserMessage(initialChatState(), "hello");
+    state = reduceEvent(state, message("hello", "user", 9));
+    state = reduceEvent(state, message("hi back", "agent", 10));
+    // Reconnect: the ring buffer replays 9 + 10; both already folded → dropped by seq dedup.
+    state = reduceEvent(state, message("hello", "user", 9));
+    state = reduceEvent(state, message("hi back", "agent", 10));
+    const texts = state.items.map((i) => (i.kind === "message" ? i.event.payload.text : ""));
+    expect(texts).toEqual(["hello", "hi back"]);
+  });
+
+  it("a wire user message with no optimistic match just appends", () => {
+    const state = reduceEvent(initialChatState(), message("from elsewhere", "user", 3));
+    expect(state.items).toHaveLength(1);
+    expect(state.items[0].key).toBe("ev-3");
+  });
+});
