@@ -1,7 +1,7 @@
 name: PR title
 
-# Гейтит заголовок PR по Conventional Commits: GitHub squash-merge берёт заголовок
-# PR как commit subject — сигнал должен быть машиночитаемым (канон commit-каденса).
+# Semantic-гейт заголовка PR — reusable devopser (skeleton D1); наш прежний конфиг
+# взят каноном экосистемы, поэтому дефолты reusable = наш конфиг 1:1.
 
 on:
   pull_request:
@@ -13,28 +13,4 @@ permissions:
 
 jobs:
   semantic:
-    name: Semantic PR title
-    runs-on: ubuntu-latest
-    steps:
-      - uses: amannn/action-semantic-pull-request@v6
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          types: |
-            feat
-            fix
-            refactor
-            docs
-            chore
-            build
-            ci
-            test
-            perf
-            style
-            revert
-          requireScope: false
-          # Subject с маленькой буквы: "feat(backend): add x", не "Add x".
-          subjectPattern: ^[a-z].+$
-          subjectPatternError: |
-            The PR title subject "{subject}" must start with a lowercase letter.
-            Example: "feat(backend): add session stop" (not "Add session stop").
+    uses: omnifield/devopser/.github/workflows/pr-title.yml@main

@@ -1,0 +1,17 @@
+# Dependabot version-updates (skeleton-шаблон devopser; НЕ drift-managed —
+# репо добавляет свои экосистемы, пример: uv для python-репо).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      npm-minor-patch:
+        update-types: [minor, patch]
+
+  # Наши reusable workflows пинят экшены — апдейты тоже через PR.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

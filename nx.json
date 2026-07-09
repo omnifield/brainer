@@ -1,26 +1,7 @@
 {
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
-  "defaultBase": "main",
-  "analytics": false,
+  "extends": "@omnifield/nx-preset/nx.json",
   "targetDefaults": {
-    "build": {
-      "cache": true,
-      "dependsOn": ["^build"],
-      "inputs": ["production", "^production"],
-      "outputs": ["{projectRoot}/dist"]
-    },
-    "lint": {
-      "cache": true,
-      "inputs": ["default", "^default"]
-    },
-    "typecheck": {
-      "cache": true,
-      "inputs": ["default", "^default"]
-    },
-    "test": {
-      "cache": true,
-      "inputs": ["default", "^default"]
-    },
     "test:py": {
       "cache": true,
       "inputs": ["pythonSources", "^pythonSources"]
@@ -31,7 +12,6 @@
     }
   },
   "namedInputs": {
-    "default": ["{projectRoot}/**/*", "sharedGlobals"],
     "pythonSources": [
       "{projectRoot}/**/*.py",
       "{projectRoot}/pyproject.toml",
@@ -39,12 +19,6 @@
       "{workspaceRoot}/pyproject.toml",
       "{workspaceRoot}/uv.lock",
       "{workspaceRoot}/.python-version"
-    ],
-    "production": [
-      "default",
-      "!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
-      "!{projectRoot}/vitest.setup.ts"
-    ],
-    "sharedGlobals": ["{workspaceRoot}/biome.json"]
+    ]
   }
 }

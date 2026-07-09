@@ -1,5 +1,7 @@
+# Только node-пакеты: python-зоны (kernel/backend/orchestrator) живут через uv + nx
+# project.json и в pnpm-workspace не входят (sherif: packages-without-package-json).
 packages:
-  - packages/*
+  - packages/frontend
 
 # pnpm 10 блокирует postinstall-скрипты по умолчанию; разрешаем точечно.
 onlyBuiltDependencies:
