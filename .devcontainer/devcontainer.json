@@ -1,0 +1,22 @@
+// Расширение init-шаблона skeleton 0.2.0 (не drift-managed) под brainer —
+// devopser/briefs/devbox-test-brainer.md + П-докер-1 ревью оракула.
+{
+  "name": "omnifield-devbox",
+  "image": "ghcr.io/omnifield/devbox:v2026.07.10",
+  "remoteUser": "vscode",
+  "mounts": ["source=omnifield-pnpm-store,target=/home/vscode/.local/share/pnpm/store,type=volume"],
+  "postCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.local/share/pnpm/store && pnpm install",
+
+  // Наружу с хоста: backend (uvicorn, DEPLOY.md) + frontend (vite).
+  "forwardPorts": [8010, 3500],
+
+  // Хостовые сервисы ИЗ контейнера: localhost тут = контейнер, поэтому OTEL-коллектор
+  // хоста (:4317) — через host.docker.internal. Backend инжектит этот URL спавнутым
+  // claude-scope-сессиям (app/config.py → adapters/claude_code.py).
+  "containerEnv": {
+    "BRAINER_OTEL_ENDPOINT": "http://host.docker.internal:4317"
+  },
+  // Docker Desktop даёт host.docker.internal из коробки; add-host покрывает голый
+  // docker-engine (host-gateway) — «для чистоты» из ревью.
+  "runArgs": ["--add-host=host.docker.internal:host-gateway"]
+}
