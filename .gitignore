@@ -9,6 +9,8 @@ dist/
 .nx/
 coverage/
 *.tsbuildinfo
+# pnpm store падает в workspace, когда home и проект на разных devices (devbox 2а, Д4)
+.pnpm-store/
 
 # Python (uv)
 .venv/
