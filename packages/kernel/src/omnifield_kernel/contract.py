@@ -83,3 +83,12 @@ class AgentProvider(ABC):
     @abstractmethod
     async def stop(self, handle: AgentSessionHandle, force: bool = False) -> None:
         """Stop the session: soft interrupt, or hard kill when `force=True`."""
+
+    def current_handle(self, handle: AgentSessionHandle) -> AgentSessionHandle:
+        """Fold the provider's accumulated in-memory state (e.g. a late-learned provider session id)
+        into the persistable handle. Default: the handle unchanged.
+
+        The backend hub re-persists the handle after each event so a late `sdk_session_id` (without
+        which resume is impossible) reaches the registry. Making this part of the seam lets any
+        provider join the persist loop without duck-typed `getattr` checks."""
+        return handle

@@ -119,6 +119,30 @@ async def test_full_lifecycle():
     assert provider._live[handle.session_id]["stopped"] is True
 
 
+async def test_current_handle_default_is_identity():
+    # A provider that doesn't fold in-memory state leaves the handle untouched.
+    provider = FakeProvider()
+    handle = await provider.launch(
+        LaunchRequest(role="owner", repo="omnifield/brainer", permission="standard")
+    )
+    assert provider.current_handle(handle) == handle
+
+
+def test_current_handle_can_enrich_provider_state():
+    # A provider that learns its session id late folds it into the persistable handle.
+    class LateIdProvider(FakeProvider):
+        def current_handle(self, handle: AgentSessionHandle) -> AgentSessionHandle:
+            return handle.model_copy(
+                update={"provider_state": {**handle.provider_state, "sdk_session_id": "late-42"}}
+            )
+
+    provider = LateIdProvider()
+    handle = AgentSessionHandle(session_id="s-1", provider="fake", provider_state={"cwd": "/repo"})
+    enriched = provider.current_handle(handle)
+    assert enriched.provider_state == {"cwd": "/repo", "sdk_session_id": "late-42"}
+    assert handle.provider_state == {"cwd": "/repo"}  # original untouched
+
+
 def test_incomplete_provider_cannot_instantiate():
     # The ABC forces the whole contract to be implemented — a partial provider fails fast.
     class Partial(AgentProvider):
