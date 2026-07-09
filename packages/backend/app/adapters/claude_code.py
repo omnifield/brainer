@@ -28,7 +28,7 @@ from claude_agent_sdk import (
     AssistantMessage,
     ClaudeAgentOptions,
     ClaudeSDKClient,
-    ClaudeSDKError,
+    CLIConnectionError,
     RateLimitEvent,
     ResultMessage,
     StreamEvent,
@@ -80,6 +80,15 @@ _PERMISSION_MODE: dict[PermissionLevel, str] = {
 
 # SDK RateLimitType values that mean an account/usage cap (vs a short-window rate cap).
 _ACCOUNT_LIMIT_TYPES = frozenset({"five_hour", "seven_day", "seven_day_opus", "seven_day_sonnet", "overage"})
+
+
+# Transient transport failures worth a retry; everything else (missing CLI, decode/logic errors,
+# non-SDK bugs) is reported non-retryable.
+_RETRYABLE_ERRORS = (CLIConnectionError,)
+
+
+def _retryable_exc(exc: BaseException) -> bool:
+    return isinstance(exc, _RETRYABLE_ERRORS)
 
 
 def _now_iso() -> str:
@@ -307,7 +316,13 @@ class ClaudeCodeAdapter(AgentProvider):
             # `stream()`, so FIFO order == seq order (user reply < response). The frontend reconciles
             # its optimistic echo against this, and replay after reconnect stays honest.
             live.q.put_nowait(("inject_user", text))
-            await live.client.query(text)
+            try:
+                await live.client.query(text)
+            except Exception as exc:
+                # The echo is already in the lane; a failed turn must not leave a "sent" reply with
+                # no outcome — surface an error event too, then propagate (API returns the failure).
+                live.q.put_nowait(("error", exc))
+                raise
 
     async def _pump_sdk(self, live: _LiveSession) -> None:
         """Feed raw SDK messages into the merge lane so `stream()` interleaves them with injects."""
@@ -316,7 +331,9 @@ class ClaudeCodeAdapter(AgentProvider):
                 live.q.put_nowait(("sdk", msg))
         except asyncio.CancelledError:
             raise
-        except ClaudeSDKError as exc:
+        except Exception as exc:
+            # Any failure (SDK or otherwise) is surfaced as an error event — never a silent close
+            # (that would regress the stream_crash visibility the hub used to provide).
             live.q.put_nowait(("error", exc))
         finally:
             live.q.put_nowait(("closed", None))
@@ -343,7 +360,11 @@ class ClaudeCodeAdapter(AgentProvider):
                             session_id=handle.session_id,
                             seq=live.next_seq(),
                             ts=_now_iso(),
-                            payload=ErrorPayload(code=type(payload).__name__, message=str(payload), retryable=False),
+                            payload=ErrorPayload(
+                                code=type(payload).__name__,
+                                message=str(payload),
+                                retryable=_retryable_exc(payload),
+                            ),
                         )
                     else:  # "closed" — the SDK stream ended (disconnect / teardown)
                         break

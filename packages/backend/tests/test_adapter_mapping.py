@@ -219,3 +219,70 @@ async def test_send_injects_user_message_before_agent_reply():
     assert seen[1].type == "message" and seen[1].payload.role == "agent" and seen[1].payload.text == "pong"
     assert seen[0].seq < seen[1].seq  # user reply strictly precedes the response
     assert adapter._live["s1"].client.queried == ["ping"]
+
+
+def _adapter_with_live(client) -> tuple[ClaudeCodeAdapter, object]:
+    adapter = ClaudeCodeAdapter(Settings())
+    handle = AgentSessionHandle(
+        session_id="s1", provider="claude-code", provider_state={"seq_base": 0, "sdk_session_id": "x"}
+    )
+    adapter._live["s1"] = _LiveSession(client=client, cwd="/r", config_dir=None, seq_base=0, sdk_session_id="x")
+    return adapter, handle
+
+
+class _RaisingClient:
+    """receive_messages() blows up on iteration — models a non-SDK crash in the pump."""
+
+    def __init__(self, exc: BaseException) -> None:
+        self._exc = exc
+
+    async def query(self, text: str) -> None: ...
+
+    async def receive_messages(self):
+        raise self._exc
+        yield  # noqa: pragma — makes this an async generator
+
+
+async def test_pump_non_sdk_exception_surfaces_error_then_closes():
+    # П1: a non-ClaudeSDKError in the pump must still emit an error event, not close silently.
+    adapter, handle = _adapter_with_live(_RaisingClient(RuntimeError("boom")))
+    seen = [e async for e in adapter.stream(handle)]
+    assert len(seen) == 1
+    assert seen[0].type == "error"
+    assert seen[0].payload.code == "RuntimeError"
+    assert seen[0].payload.retryable is False
+
+
+class _QueryFailsClient:
+    def __init__(self, exc: BaseException) -> None:
+        self._exc = exc
+        self._out: asyncio.Queue = asyncio.Queue()
+
+    async def query(self, text: str) -> None:
+        raise self._exc
+
+    async def receive_messages(self):
+        while True:
+            yield await self._out.get()
+
+
+async def test_send_query_failure_emits_error_after_echo():
+    # П2: if query() throws, the echo is followed by an error event (retryable by type), and send re-raises.
+    adapter, handle = _adapter_with_live(_QueryFailsClient(sdk.CLIConnectionError("dropped")))
+    seen: list = []
+
+    async def consume():
+        async for event in adapter.stream(handle):
+            seen.append(event)
+            if len(seen) >= 2:
+                break
+
+    task = asyncio.create_task(consume())
+    await asyncio.sleep(0)
+    with pytest.raises(sdk.CLIConnectionError):
+        await adapter.send(handle, "ping")
+    await asyncio.wait_for(task, 1.0)
+
+    assert seen[0].type == "message" and seen[0].payload.role == "user" and seen[0].payload.text == "ping"
+    assert seen[1].type == "error"
+    assert seen[1].payload.retryable is True  # CLIConnectionError is transient
