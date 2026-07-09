@@ -15,7 +15,12 @@
 //
 // Main session (architect) — full git access. Owner-сессии/subagents — gated.
 // Различение через marker `.claude/.main-session-id` (пишет main-session-marker.mjs
-// в SessionStart ТОЛЬКО для scope 'main'). session_id совпал с маркером → main → allow всё.
+// в SessionStart ТОЛЬКО для scope 'main'). Маркер — МНОЖЕСТВО id (по строке на сессию):
+// резюм даёт сессии новый id (SessionStart допишет), параллельные main-сессии не
+// затирают друг друга. session_id есть в маркере → main → allow всё.
+//
+// Env-проверка (OMNIFIELD_SCOPE) сознательно НЕ используется: subagents наследуют env
+// родителя вместе со scope=main — марка по session_id их отсекает, env — нет.
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -93,8 +98,11 @@ function isMainSession(input) {
   if (!sessionId) return false;
   const cwd = input.cwd || process.cwd();
   try {
-    const marker = readFileSync(join(cwd, '.claude', '.main-session-id'), 'utf8').trim();
-    return marker.length > 0 && marker === String(sessionId);
+    const ids = readFileSync(join(cwd, '.claude', '.main-session-id'), 'utf8')
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    return ids.includes(String(sessionId));
   } catch {
     return false;
   }
@@ -103,13 +111,16 @@ function isMainSession(input) {
 function main() {
   let input;
   try {
-    input = JSON.parse(readFileSync(0, 'utf8'));
+    // strip BOM: Windows-пайпы (PowerShell) могут префиксовать stdin — не повод для fail-open.
+    input = JSON.parse(readFileSync(0, 'utf8').replace(/^﻿/, ''));
   } catch {
     allow();
     return;
   }
 
-  if (input.tool_name !== 'Bash') {
+  // Оба shell-тула харнесса: команды идут и через Bash, и через PowerShell —
+  // охват только Bash оставлял PowerShell-путь вне gate (дыра, найдена 2026-07-09).
+  if (input.tool_name !== 'Bash' && input.tool_name !== 'PowerShell') {
     allow();
     return;
   }
