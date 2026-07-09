@@ -108,6 +108,8 @@ git-gate-хук (вторая линия обороны, грузится чер
 ## Границы / эскалация к architect
 
 - `claude-scope.ps1` — ручной fallback юзера + референс env, из репо НЕ выпиливается.
+- `current_handle` войдёт в kernel `AgentProvider` неабстрактным дефолтом (owner-kernel, ратифицировано):
+  hub зовёт его через `getattr(..., lambda h: h)` — provider-agnostic до kernel-правки.
 - SDK отдаёт что-то вне словаря контракта → STOP + architect (расширение словаря — его решение).
 - `SessionStore` (kernel) открыт без `check_same_thread=False` → в проде ок (один event-loop-тред),
   но cross-thread (threadpool/мульти-воркер) споткнётся; тесты гоняем в одном event-loop'е

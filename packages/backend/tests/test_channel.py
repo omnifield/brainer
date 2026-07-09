@@ -24,6 +24,7 @@ from omnifield_kernel import (
 )
 
 from app.channel.hub import ChannelHub, SessionChannel
+from app.channel.seq import SEQ_BLOCK
 
 
 def _handle(sid: str = "s1", sdk_sid: str | None = "sdk-1", seq_base: int = 0) -> AgentSessionHandle:
@@ -120,6 +121,16 @@ async def test_mark_dead_surfaces_stopped_and_error():
     assert err.payload.retryable is False
 
 
+async def test_dead_channel_uses_fresh_epoch_so_old_reconnect_sees_it():
+    # П1: a client holding a prior-epoch Last-Event-ID must still receive the unresumable events —
+    # they live in a fresh seq epoch (>= SEQ_BLOCK), not filtered as "already seen".
+    ch = SessionChannel(_handle(sid="s1", seq_base=0), _request(), adapter=None, store=None, buffer_size=100)
+    ch.mark_dead("unresumable", "no sdk id")
+    events = await _drain(ch.subscribe(last_event_id=500))
+    assert [e.type for e in events] == ["status", "error"]
+    assert all(e.seq >= SEQ_BLOCK for e in events)  # above any epoch-0 Last-Event-ID
+
+
 # ---- hub lifecycle over a fake provider ----
 
 
@@ -202,3 +213,13 @@ async def test_resume_all_revives_and_marks_dead(store):
     dead = hub_bad.subscribe("bad", None)
     events = await _drain(dead)
     assert any(e.type == "error" for e in events)
+
+
+async def test_send_to_dead_channel_returns_false(store):
+    # П3: send into an unresumable channel is "not live" (→ 404), never a 500 from the adapter.
+    store.put(_handle("bad"), _request("kernel"))
+    bad = FakeAdapter([], resume_ok=False)
+    hub = ChannelHub(bad, store, buffer_size=100)
+    await hub.resume_all()
+    assert await hub.send("bad", "hi") is False
+    assert bad.sent == []  # the adapter was never asked to send into a dead session

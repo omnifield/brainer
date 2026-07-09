@@ -63,12 +63,11 @@ from omnifield_kernel import (
     Usage,
 )
 
+from ..channel.seq import SEQ_BLOCK, next_epoch_base
 from ..config import Settings
 from ..lib.trace import span
 
-# seq base jump per session epoch (launch = epoch 0, each resume += this). Large enough that a single
-# epoch never overruns it; small enough that many resumes stay under JS Number.MAX_SAFE_INTEGER.
-SEQ_BLOCK = 1_000_000_000
+__all__ = ["ClaudeCodeAdapter", "map_sdk_message", "SEQ_BLOCK"]  # SEQ_BLOCK re-exported for tests/back-compat
 
 # Our permission vocabulary → SDK permission_mode (blueprint §1.4.3). `standard` leans on the git-gate
 # hook (second line of defense) + tool-lists from presets (deferred); mode alone stays acceptEdits.
@@ -324,7 +323,7 @@ class ClaudeCodeAdapter(AgentProvider):
                 raise ResumeError(f"session {handle.session_id} has no sdk_session_id; not resumable")
             cwd = ps.get("cwd") or str(self._settings_repo_cwd(handle))
             config_dir = ps.get("config_dir")
-            new_base = int(ps.get("seq_base", 0)) + SEQ_BLOCK
+            new_base = next_epoch_base(int(ps.get("seq_base", 0)))
             options = self._build_options(
                 scope=ps.get("scope", handle.session_id), repo=ps.get("repo", ""), cwd=cwd, config_dir=config_dir,
                 permission=ps.get("permission", "standard"), model=ps.get("model"), persona=ps.get("persona"),

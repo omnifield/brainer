@@ -21,6 +21,7 @@ from omnifield_kernel import (
 )
 
 from ..lib.trace import aspan, span
+from .seq import SEQ_BLOCK
 
 
 def _now_iso() -> str:
@@ -66,8 +67,12 @@ class SessionChannel:
         self._status = "starting"
         self._sid_persisted = handle.provider_state.get("sdk_session_id") is not None
         self._task: asyncio.Task | None = None
+        self._dead = False
         self.created_at = created_at or _now_iso()
-        self._dead_seq = _seq_base(handle)
+        # Hub-synthetic events (stream_crash / mark_dead) claim a FRESH epoch above the adapter's
+        # current one (same mechanic as resume). Otherwise a client reconnecting with a prior-epoch
+        # Last-Event-ID would filter them as "already seen" and silently lose the failure (review П1).
+        self._dead_seq = _seq_base(handle) + SEQ_BLOCK
 
     # ---- consumption ----
 
@@ -83,6 +88,7 @@ class SessionChannel:
             except asyncio.CancelledError:
                 raise
             except Exception as exc:  # provider blew up outside the contract — surface, don't die silently
+                self._dead = True  # the client is gone; further sends must not 500 (review П3)
                 self._ingest(self._make_error("stream_crash", str(exc)))
             # Stream ended → the session is no longer producing.
             self._status = "stopped"
@@ -107,7 +113,11 @@ class SessionChannel:
     def _maybe_persist_sid(self) -> None:
         if self._sid_persisted:
             return
-        refreshed = self._adapter.current_handle(self.handle)  # type: ignore[attr-defined]
+        # `current_handle` reflects in-memory state (captured sdk_session_id) into the persistable
+        # handle. It is entering the kernel `AgentProvider` as a non-abstract default (review П2,
+        # owner-kernel); until then keep the hub provider-agnostic — a provider without it just
+        # yields the handle unchanged rather than crashing the consume task.
+        refreshed = getattr(self._adapter, "current_handle", lambda h: h)(self.handle)
         if refreshed.provider_state.get("sdk_session_id"):
             self.handle = refreshed
             self._store.put(refreshed, self.request)
@@ -142,6 +152,11 @@ class SessionChannel:
     def status(self) -> str:
         return self._status
 
+    @property
+    def is_live(self) -> bool:
+        """A session that can still take a `send`: not dead-marked (unresumable) and not crashed."""
+        return not self._dead
+
     def summary(self, stored_created: str, stored_updated: str) -> SessionSummary:
         ps = self.handle.provider_state
         return SessionSummary(
@@ -158,6 +173,7 @@ class SessionChannel:
     def mark_dead(self, code: str, message: str) -> None:
         """No consumer task: preload a stopped-status + error event so subscribers see the failure
         (used when resume-on-start cannot revive a persisted session — blueprint В2)."""
+        self._dead = True
         self._status = "stopped"
         self._ingest(StatusEvent(session_id=self.handle.session_id, seq=self._next_dead_seq(), ts=_now_iso(),
                                  payload=StatusPayload(state="stopped", detail="unresumable")))
@@ -211,7 +227,9 @@ class ChannelHub:
 
     async def send(self, session_id: str, text: str) -> bool:
         channel = self._channels.get(session_id)
-        if channel is None:
+        # A dead/ended channel (e.g. unresumable after restart) has no live client — report
+        # "not live" (API → 404) instead of letting the adapter raise a 500 (review П3).
+        if channel is None or not channel.is_live:
             return False
         await self._adapter.send(channel.handle, text)
         return True
