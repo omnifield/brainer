@@ -14,11 +14,13 @@
     "test": "nx run-many -t test,test:py",
     "typecheck": "nx run-many -t typecheck",
     "lint": "nx run-many -t lint,lint:py",
-    "affected": "nx affected -t lint,typecheck,test,build"
+    "affected": "nx affected -t lint,typecheck,test,build",
+    "hygiene": "sherif"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.3",
     "husky": "^9.1.7",
-    "nx": "^23.0.1"
+    "nx": "^23.0.1",
+    "sherif": "^1.13.0"
   }
 }
