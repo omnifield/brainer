@@ -4,6 +4,8 @@ node_modules/
 dist/
 .vite/
 *.local
+# *.local — vite env; extension-point'ы эталонных хуков НЕ глотать (feedback brainer П1)
+!.husky/*.local
 .nx/
 coverage/
 *.tsbuildinfo
@@ -33,9 +35,3 @@ out-tsc/
 .claude/.main-session-id
 .claude/settings.local.json
 # <<< omnifield-skeleton <<<
-
-# --- repo-specific (brainer), ниже блока: негации должны перекрывать managed-паттерны ---
-# ГРАБЛЯ скелета (эскалировано devopser через consumer-brainer): блок игнорит `*.local`
-# (vite env), что матчит и .husky/*.local — собственный extension-point эталонных хуков.
-# Хуки-расширения обязаны трекаться:
-!.husky/*.local

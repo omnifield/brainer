@@ -15,7 +15,8 @@ if git rev-parse --verify -q origin/main >/dev/null; then
   CMD="pnpm nx affected -t lint,typecheck --base=origin/main"
 else
   echo "[pre-commit] origin/main отсутствует (bootstrap) — nx run-many lint + typecheck…"
-  CMD="pnpm nx run-many -t lint,typecheck"
+  # run-many в nx 23 НЕ парсит comma-список (молчаливый no-op) — только space-форма.
+  CMD="pnpm nx run-many -t lint typecheck"
 fi
 
 $CMD || {

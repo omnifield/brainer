@@ -10,7 +10,8 @@ if git rev-parse --verify -q origin/main >/dev/null; then
   CMD="pnpm nx affected -t test,build --base=origin/main"
 else
   echo "[pre-push] origin/main отсутствует (bootstrap) — nx run-many test + build…"
-  CMD="pnpm nx run-many -t test,build"
+  # run-many в nx 23 НЕ парсит comma-список (молчаливый no-op) — только space-форма.
+  CMD="pnpm nx run-many -t test build"
 fi
 
 $CMD || {
