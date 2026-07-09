@@ -1,5 +1,7 @@
 # Brief — kernel: `current_handle` в контракт AgentProvider (микро)
 
+> **ЗАКРЫТ** — `04c0aa8`, принят architect 2026-07-09 (37/37, purity ок).
+
 | | |
 |---|---|
 | **Scope** | `kernel` (`packages/kernel/`) |
