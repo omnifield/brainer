@@ -10,25 +10,19 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-jobs:
-  node:
-    name: Node (nx affected lint/typecheck/test/build)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          # nx affected needs history to diff against the base branch.
-          fetch-depth: 0
-      # Версия pnpm — из packageManager root package.json (пин, toolchain-pins).
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - uses: nrwl/nx-set-shas@v4
-      - run: pnpm nx affected -t lint,typecheck,test,build
+# Права задаёт caller — reusable расширить их не может; без actions:read падает nx-set-shas.
+permissions:
+  contents: read
+  actions: read
 
+jobs:
+  # Node-контур — reusable devopser (skeleton D1): hygiene (sherif) + nx affected +
+  # drift-check вендоренных skeleton-копий. Тулчейн-пины — из нашего package.json.
+  node:
+    uses: omnifield/devopser/.github/workflows/node-ci.yml@main
+
+  # Python-контур локальный: reusable python-ci появится need-driven — при втором
+  # python-потребителе экосистемы (решение devopser briefs/consumer-brainer.md).
   python:
     name: Python (ruff + pytest, ${{ matrix.pkg }})
     runs-on: ubuntu-latest
