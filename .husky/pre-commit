@@ -1,14 +1,33 @@
 #!/usr/bin/env sh
-# Commit-каденс (POLICY): этап → проверка → коммит. Быстрый гейт — lint + typecheck
-# только по затронутому. Bypass (emergency only): git commit --no-verify
+# Commit-каденс (POLICY): этап → проверка → коммит. Быстрый гейт — hygiene + lint +
+# typecheck по затронутому. Bypass (emergency only): git commit --no-verify
 
 echo ""
-echo "[pre-commit] nx affected lint + typecheck (base=origin/main)…"
+echo "[pre-commit] sherif (monorepo hygiene)…"
+pnpm sherif || {
+  echo "  [pre-commit] FAILED — sherif нашёл расхождения workspace-гигиены."
+  exit 1
+}
 
-pnpm nx affected -t lint,lint:py,typecheck --base=origin/main || {
+# Бутстрап-кейс: origin/main ещё не существует (первый пуш) → гоняем всё.
+if git rev-parse --verify -q origin/main >/dev/null; then
+  echo "[pre-commit] nx affected lint + typecheck (base=origin/main)…"
+  CMD="pnpm nx affected -t lint,typecheck --base=origin/main"
+else
+  echo "[pre-commit] origin/main отсутствует (bootstrap) — nx run-many lint + typecheck…"
+  CMD="pnpm nx run-many -t lint,typecheck"
+fi
+
+$CMD || {
   echo ""
-  echo "  [pre-commit] FAILED — lint/typecheck красные на затронутом."
+  echo "  [pre-commit] FAILED — lint/typecheck красные."
   echo "  Bypass (emergency only): git commit --no-verify"
   echo ""
   exit 1
 }
+
+# Репо-специфичное расширение гейта (НЕ drift-managed, пример: lint:py brainer).
+if [ -f .husky/pre-commit.local ]; then
+  echo "[pre-commit] repo-local гейт (.husky/pre-commit.local)…"
+  . .husky/pre-commit.local || exit 1
+fi

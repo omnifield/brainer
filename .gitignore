@@ -1,28 +1,41 @@
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-.venv/
-.env
-.env.*
-!.env.example
-.pytest_cache/
-.ruff_cache/
-.mypy_cache/
-
-# Node (frontend)
+# >>> omnifield-skeleton (managed by devopser; синк: init.mjs, не редактировать руками) >>>
+# Node
 node_modules/
 dist/
 .vite/
 *.local
 .nx/
+coverage/
+*.tsbuildinfo
+
+# Python (uv)
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# env
+.env
+.env.*
+!.env.example
 
 # OS / editor
 .DS_Store
 Thumbs.db
 .idea/
 .vscode/
+out-tsc/
 
-# Claude Code runtime (harness state — hooks/settings ARE tracked)
+# Claude Code runtime (harness state — hooks/settings трекаются, runtime нет)
 .claude/.main-session-id
 .claude/settings.local.json
+# <<< omnifield-skeleton <<<
+
+# --- repo-specific (brainer), ниже блока: негации должны перекрывать managed-паттерны ---
+# ГРАБЛЯ скелета (эскалировано devopser через consumer-brainer): блок игнорит `*.local`
+# (vite env), что матчит и .husky/*.local — собственный extension-point эталонных хуков.
+# Хуки-расширения обязаны трекаться:
+!.husky/*.local

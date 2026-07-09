@@ -1,0 +1,2 @@
+# Repo-local гейт brainer (extension-point эталона, НЕ drift-managed): python-зоны.
+pnpm nx affected -t test:py --base=origin/main || exit 1
