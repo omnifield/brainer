@@ -113,11 +113,10 @@ class SessionChannel:
     def _maybe_persist_sid(self) -> None:
         if self._sid_persisted:
             return
-        # `current_handle` reflects in-memory state (captured sdk_session_id) into the persistable
-        # handle. It is entering the kernel `AgentProvider` as a non-abstract default (review П2,
-        # owner-kernel); until then keep the hub provider-agnostic — a provider without it just
-        # yields the handle unchanged rather than crashing the consume task.
-        refreshed = getattr(self._adapter, "current_handle", lambda h: h)(self.handle)
+        # `current_handle` (kernel contract; non-abstract default returns the handle as-is) reflects
+        # in-memory provider state into the persistable handle: an sdk_session_id the provider only
+        # learns mid-stream must reach the registry, or the session can't be resumed after restart.
+        refreshed = self._adapter.current_handle(self.handle)
         if refreshed.provider_state.get("sdk_session_id"):
             self.handle = refreshed
             self._store.put(refreshed, self.request)

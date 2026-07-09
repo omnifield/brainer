@@ -30,11 +30,15 @@ jobs:
       - run: pnpm nx affected -t lint,typecheck,test,build
 
   python:
-    name: Python (ruff + pytest, backend)
+    name: Python (ruff + pytest, ${{ matrix.pkg }})
     runs-on: ubuntu-latest
+    strategy:
+      # Каждый python-пакет workspace — свой прогон: пакет без прогона в CI = невидимая дыра.
+      matrix:
+        pkg: [backend, kernel]
     defaults:
       run:
-        working-directory: packages/backend
+        working-directory: packages/${{ matrix.pkg }}
     steps:
       - uses: actions/checkout@v6
       # Версия uv — под required-version root pyproject.toml; CPython — из .python-version.
@@ -42,7 +46,7 @@ jobs:
         with:
           version: "0.11.x"
           enable-cache: true
-      - name: Sync deps (uv workspace member + dev group)
+      - name: Sync deps (uv + dev group)
         run: uv sync --dev
       - name: Lint (ruff)
         run: uv run ruff check .
