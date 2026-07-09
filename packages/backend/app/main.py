@@ -2,8 +2,9 @@
 
   uv run uvicorn app.main:app --reload
 
-CORS is open for the dev dashboard (Vite) to swap its mock adapter for this backend by changing
-config, not code (the interface-mvp seam). `create_app(deps=...)` accepts injected deps for tests.
+On start-up the hub resumes persisted sessions (blueprint В2); on shutdown it tears down live
+clients and closes the registry. CORS is open for the dev dashboard. `create_app(deps=...)` accepts
+injected deps for tests.
 """
 
 from __future__ import annotations
@@ -27,8 +28,10 @@ def create_app(deps: Deps | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
+        await resolved.hub.resume_all()
         yield
-        await resolved.http.aclose()
+        await resolved.hub.shutdown()
+        resolved.store.close()
 
     app = FastAPI(title="Omnifield Brainer — backend", version="0.1.0", lifespan=lifespan)
     app.add_middleware(

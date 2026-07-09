@@ -1,8 +1,9 @@
 """Settings + the managed-repo registry.
 
-Every managed repo (brainer / writer / …) ships its own `claude-scope.ps1` launcher; the
-backend keeps the path→name list here. Telemetry endpoints and the OTEL collector target
-are overridable via env so the same server runs against a local or remote observability stack.
+Every managed repo (brainer / writer / …) ships its own `claude-scope.ps1` launcher — that file
+stays as the manual fallback + env reference, but the backend no longer spawns it: sessions are
+headless via the claude-code adapter (control-channel brief). The backend keeps the path→name list
+here. The OTEL collector target is overridable via env (the adapter injects it so metrics flow).
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ class Repo:
     """A managed repository the backend can launch scoped sessions in."""
 
     name: str  # contract identity, e.g. "omnifield/brainer"
-    path: Path  # cwd for the spawn
+    path: Path  # cwd for the session
 
     @property
     def launcher(self) -> Path:
@@ -28,7 +29,7 @@ class Repo:
 
 
 def _default_repos() -> dict[str, Repo]:
-    # Only repos that actually carry a claude-scope.ps1 launcher are spawnable.
+    # Only repos that actually carry a claude-scope.ps1 launcher are spawnable (still the env reference).
     candidates = {
         "omnifield/brainer": _OMNIFIELD_ROOT / "brainer",
         "omnifield/writer": _OMNIFIELD_ROOT / "writer",
@@ -42,17 +43,13 @@ def _default_repos() -> dict[str, Repo]:
 
 @dataclass(frozen=True)
 class Settings:
-    loki_url: str = field(default_factory=lambda: os.environ.get("BRAINER_LOKI_URL", "http://localhost:3100"))
-    prometheus_url: str = field(default_factory=lambda: os.environ.get("BRAINER_PROMETHEUS_URL", "http://localhost:9090"))
+    # OTEL collector the adapter injects so token/cost metrics flow for any spawned session.
     otel_endpoint: str = field(default_factory=lambda: os.environ.get("BRAINER_OTEL_ENDPOINT", "http://localhost:4317"))
-    # A session with telemetry newer than this is "working", else "idle".
-    working_threshold_s: int = field(default_factory=lambda: int(os.environ.get("BRAINER_WORKING_THRESHOLD_S", "60")))
-    # How far back to look when discovering sessions we did not spawn.
-    discovery_lookback_s: int = field(
-        default_factory=lambda: int(os.environ.get("BRAINER_DISCOVERY_LOOKBACK_S", "900"))
-    )
-    # SSE poll cadence for /stream.
-    stream_poll_s: float = field(default_factory=lambda: float(os.environ.get("BRAINER_STREAM_POLL_S", "2.0")))
+    # CLAUDE_CONFIG_DIR for the SDK: None → SDK default (existing CLI auth). Also the multi-account
+    # isolation seam (§5) and half of the resume key (cwd + config_dir).
+    claude_config_dir: str | None = field(default_factory=lambda: os.environ.get("BRAINER_CLAUDE_CONFIG_DIR") or None)
+    # Per-session ring buffer cap for SSE Last-Event-ID replay (intra-process; delivery-only).
+    channel_buffer_size: int = field(default_factory=lambda: int(os.environ.get("BRAINER_CHANNEL_BUFFER", "1024")))
     repos: dict[str, Repo] = field(default_factory=_default_repos)
 
     def repo(self, name: str) -> Repo | None:

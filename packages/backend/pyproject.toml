@@ -7,7 +7,15 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
     "httpx>=0.27",
+    "omnifield-kernel",
+    "claude-agent-sdk>=0.1",
 ]
+
+# kernel lives at ../kernel — a standalone library, not yet a workspace member (root pyproject:
+# "kernel/orchestrator станут members при extract"). Wiring it into backend's env is the backend
+# step (kernel README NOTE), so we source it by path here rather than touching the root workspace.
+[tool.uv.sources]
+omnifield-kernel = { path = "../kernel", editable = true }
 
 [dependency-groups]
 dev = [

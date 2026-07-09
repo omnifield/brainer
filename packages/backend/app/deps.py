@@ -1,53 +1,40 @@
 """Dependency wiring — one place that assembles the object graph.
 
-`build_deps` is injectable (tests pass a stub httpx client with a MockTransport, or a fake fleet)
-so the app factory stays test-friendly. The shared httpx.AsyncClient is owned here and closed on
-app shutdown.
+The graph is now: kernel `SessionStore` (persistent sqlite) → `ClaudeCodeAdapter` (headless SDK) →
+`ChannelHub` (delivery). `build_deps` is injectable (tests pass a fake adapter/store) so the app
+factory stays test-friendly. The task board keeps its own in-memory store, unrelated to the channel.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-import httpx
+from omnifield_kernel import SessionStore
 
+from .adapters.claude_code import ClaudeCodeAdapter
+from .channel import ChannelHub
 from .config import Settings
-from .providers.claude_code import ClaudeCodeProvider
-from .sessions.fleet import FleetService
-from .sessions.registry import SessionRegistry
 from .sessions.tasks import TaskStore
-from .telemetry.loki import LokiClient
-from .telemetry.prometheus import PrometheusClient
-from .telemetry.service import TelemetryService
 
 
 @dataclass
 class Deps:
     settings: Settings
-    registry: SessionRegistry
+    store: SessionStore
+    adapter: ClaudeCodeAdapter
+    hub: ChannelHub
     tasks: TaskStore
-    telemetry: TelemetryService
-    provider: ClaudeCodeProvider
-    fleet: FleetService
-    http: httpx.AsyncClient
 
 
-def build_deps(settings: Settings | None = None, *, http: httpx.AsyncClient | None = None) -> Deps:
+def build_deps(
+    settings: Settings | None = None,
+    *,
+    store: SessionStore | None = None,
+    adapter: ClaudeCodeAdapter | None = None,
+) -> Deps:
     settings = settings or Settings()
-    client = http or httpx.AsyncClient(timeout=5.0)
-    loki = LokiClient(settings.loki_url, client)
-    prometheus = PrometheusClient(settings.prometheus_url, client)
-    telemetry = TelemetryService(loki, prometheus, discovery_lookback_s=settings.discovery_lookback_s)
-    registry = SessionRegistry()
+    store = store if store is not None else SessionStore()  # kernel sqlite in brainer's data-dir
+    adapter = adapter if adapter is not None else ClaudeCodeAdapter(settings)
+    hub = ChannelHub(adapter, store, settings.channel_buffer_size)
     tasks = TaskStore()
-    provider = ClaudeCodeProvider(settings, telemetry)
-    fleet = FleetService(settings, registry, provider, telemetry, tasks)
-    return Deps(
-        settings=settings,
-        registry=registry,
-        tasks=tasks,
-        telemetry=telemetry,
-        provider=provider,
-        fleet=fleet,
-        http=client,
-    )
+    return Deps(settings=settings, store=store, adapter=adapter, hub=hub, tasks=tasks)
