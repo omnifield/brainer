@@ -17,6 +17,7 @@ needed to rebuild identical options from the handle alone.
 
 from __future__ import annotations
 
+import asyncio
 import os
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
@@ -123,6 +124,9 @@ class _LiveSession:
     seq_base: int
     sdk_session_id: str | None = None
     _local: int = field(default=0, repr=False)
+    # Merge lane: `stream()` drains this; `send()` injects the user's own reply here (the SDK stream
+    # does not echo it). Items are ("sdk", msg) | ("inject_user", text) | ("error", exc) | ("closed", None).
+    q: asyncio.Queue = field(default_factory=asyncio.Queue, repr=False)
 
     def next_seq(self) -> int:
         s = self.seq_base + self._local
@@ -297,22 +301,54 @@ class ClaudeCodeAdapter(AgentProvider):
     async def send(self, handle: AgentSessionHandle, text: str) -> None:
         live = self._require_live(handle)
         with span("adapter.send", session_id=handle.session_id):
+            # Ф2: the SDK stream never echoes the user's own prompt, so inject a wire
+            # `message {role:user}` into the merge lane BEFORE the turn runs. Enqueuing before
+            # query() guarantees it precedes the agent's response; seq is assigned at dequeue in
+            # `stream()`, so FIFO order == seq order (user reply < response). The frontend reconciles
+            # its optimistic echo against this, and replay after reconnect stays honest.
+            live.q.put_nowait(("inject_user", text))
             await live.client.query(text)
+
+    async def _pump_sdk(self, live: _LiveSession) -> None:
+        """Feed raw SDK messages into the merge lane so `stream()` interleaves them with injects."""
+        try:
+            async for msg in live.client.receive_messages():
+                live.q.put_nowait(("sdk", msg))
+        except asyncio.CancelledError:
+            raise
+        except ClaudeSDKError as exc:
+            live.q.put_nowait(("error", exc))
+        finally:
+            live.q.put_nowait(("closed", None))
 
     async def stream(self, handle: AgentSessionHandle) -> AsyncIterator[Event]:
         live = self._require_live(handle)
         with span("adapter.stream", session_id=handle.session_id):
+            pump = asyncio.create_task(self._pump_sdk(live))
             try:
-                async for msg in live.client.receive_messages():
-                    for event in map_sdk_message(msg, live, handle.session_id):
-                        yield event
-            except ClaudeSDKError as exc:
-                yield ErrorEvent(
-                    session_id=handle.session_id,
-                    seq=live.next_seq(),
-                    ts=_now_iso(),
-                    payload=ErrorPayload(code=type(exc).__name__, message=str(exc), retryable=False),
-                )
+                while True:
+                    kind, payload = await live.q.get()
+                    if kind == "sdk":
+                        for event in map_sdk_message(payload, live, handle.session_id):
+                            yield event
+                    elif kind == "inject_user":
+                        yield MessageEvent(
+                            session_id=handle.session_id,
+                            seq=live.next_seq(),
+                            ts=_now_iso(),
+                            payload=MessagePayload(role="user", text=payload),
+                        )
+                    elif kind == "error":
+                        yield ErrorEvent(
+                            session_id=handle.session_id,
+                            seq=live.next_seq(),
+                            ts=_now_iso(),
+                            payload=ErrorPayload(code=type(payload).__name__, message=str(payload), retryable=False),
+                        )
+                    else:  # "closed" — the SDK stream ended (disconnect / teardown)
+                        break
+            finally:
+                pump.cancel()
 
     async def resume(self, handle: AgentSessionHandle) -> AgentSessionHandle:
         with span("adapter.resume", session_id=handle.session_id):

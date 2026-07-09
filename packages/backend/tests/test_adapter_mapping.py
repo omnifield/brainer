@@ -6,8 +6,11 @@ and inspect the emitted contract events. `_build_options` is checked without con
 
 from __future__ import annotations
 
+import asyncio
+
 import claude_agent_sdk as sdk
 import pytest
+from omnifield_kernel import AgentSessionHandle
 
 from app.adapters.claude_code import (
     _PERMISSION_MODE,
@@ -172,3 +175,47 @@ def test_build_options_env_persona_and_mode():
     assert "repo=omnifield/brainer" in options.env["OTEL_RESOURCE_ATTRIBUTES"]
     # persona appends to the default preset, never replaces it.
     assert options.system_prompt == {"type": "preset", "preset": "claude_code", "append": "Be terse."}
+
+
+class _FakeClient:
+    """Minimal ClaudeSDKClient stand-in: query() makes the 'agent' answer via receive_messages()."""
+
+    def __init__(self) -> None:
+        self._out: asyncio.Queue = asyncio.Queue()
+        self.queried: list[str] = []
+
+    async def query(self, text: str) -> None:
+        self.queried.append(text)
+        self._out.put_nowait(sdk.AssistantMessage(content=[sdk.TextBlock(text="pong")], model="m"))
+
+    async def receive_messages(self):
+        while True:
+            yield await self._out.get()
+
+
+async def test_send_injects_user_message_before_agent_reply():
+    # Ф2: send() must put a wire message{role:user} into the stream so it survives replay, ordered
+    # before the agent's response, with monotonic seq.
+    adapter = ClaudeCodeAdapter(Settings())
+    handle = AgentSessionHandle(
+        session_id="s1", provider="claude-code", provider_state={"seq_base": 0, "sdk_session_id": "x"}
+    )
+    adapter._live["s1"] = _LiveSession(client=_FakeClient(), cwd="/r", config_dir=None, seq_base=0, sdk_session_id="x")
+
+    seen: list = []
+
+    async def consume():
+        async for event in adapter.stream(handle):
+            seen.append(event)
+            if len(seen) >= 2:
+                break
+
+    task = asyncio.create_task(consume())
+    await asyncio.sleep(0)  # let stream() start its SDK pump
+    await adapter.send(handle, "ping")
+    await asyncio.wait_for(task, 1.0)
+
+    assert seen[0].type == "message" and seen[0].payload.role == "user" and seen[0].payload.text == "ping"
+    assert seen[1].type == "message" and seen[1].payload.role == "agent" and seen[1].payload.text == "pong"
+    assert seen[0].seq < seen[1].seq  # user reply strictly precedes the response
+    assert adapter._live["s1"].client.queried == ["ping"]

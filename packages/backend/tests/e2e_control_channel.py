@@ -69,7 +69,12 @@ async def main() -> int:
     assert TOKEN in col.texts(), f"turn 1 did not echo token; got: {col.texts()[:200]}"
     types = {e.type for e in col.events}
     assert "status" in types and "message" in types and "done" in types, f"missing event types: {types}"
-    print("  OK: saw status + message + done, token echoed")
+    # Ф2: the user's own reply must be in the wire stream (not just optimistic UI), before the answer.
+    user_msgs = [e for e in col.events if e.type == "message" and e.payload.role == "user"]
+    assert any(TOKEN in e.payload.text for e in user_msgs), "Ф2: user reply not injected into stream"
+    agent_seq = next(e.seq for e in col.events if e.type == "message" and e.payload.role == "agent")
+    assert user_msgs[0].seq < agent_seq, "Ф2: user reply not ordered before agent response"
+    print("  OK: saw status + user-message + agent-message + done, ordering correct")
 
     refreshed = adapter.current_handle(handle)
     sdk_sid = refreshed.provider_state.get("sdk_session_id")
