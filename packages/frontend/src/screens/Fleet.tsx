@@ -1,17 +1,16 @@
 import { useNavigate } from "@solidjs/router";
 import { For, type JSX, Show } from "solid-js";
 import { StatusBadge } from "../components/StatusBadge";
-import { formatRelative, formatUptime } from "../lib/format";
+import { formatUptime } from "../lib/format";
 import { useFleet } from "../store/fleet";
 
-// Fleet — the main screen. Every session at a glance: the "don't lose control"
-// core. Dumb: reads store state, renders. Live activity flows in via the store's
-// stream subscriptions (started in the app shell).
+// Fleet — the main screen. Every live session at a glance (the "don't lose control" core). Dumb:
+// reads the real session projection from the store and renders. Clicking a row opens its chat.
 
 export function Fleet(): JSX.Element {
   const { state } = useFleet();
   const navigate = useNavigate();
-  const active = () => state.sessions.filter((s) => s.status === "working").length;
+  const running = () => state.sessions.filter((s) => s.status === "running").length;
 
   return (
     <>
@@ -19,7 +18,7 @@ export function Fleet(): JSX.Element {
         <div>
           <h1>Fleet</h1>
           <p>
-            {state.sessions.length} sessions · {active()} working
+            {state.sessions.length} sessions · {running()} running
           </p>
         </div>
         <button type="button" class="btn btn-primary" onClick={() => navigate("/launch")}>
@@ -35,40 +34,24 @@ export function Fleet(): JSX.Element {
           <table>
             <thead>
               <tr>
-                <th>Scope</th>
+                <th>Zone</th>
                 <th>Repo</th>
-                <th>Role</th>
                 <th>Status</th>
-                <th>Model</th>
-                <th>Uptime</th>
-                <th>Last activity</th>
+                <th>Started</th>
+                <th>Session</th>
               </tr>
             </thead>
             <tbody>
               <For each={state.sessions}>
                 {(s) => (
-                  <tr onClick={() => navigate(`/sessions/${s.id}`)}>
-                    <td class="mono">{s.scope}</td>
+                  <tr onClick={() => navigate(`/sessions/${s.session_id}`)}>
+                    <td class="mono">{s.role}</td>
                     <td class="mono dim">{s.repo}</td>
-                    <td class="dim">{s.role}</td>
                     <td>
                       <StatusBadge status={s.status} />
                     </td>
-                    <td class="mono faint">{s.model}</td>
-                    <td class="mono dim">{formatUptime(s.startedAt)}</td>
-                    <td>
-                      <div class="stack">
-                        <span>
-                          <span class="mono" style={{ color: "var(--accent)" }}>
-                            {s.lastActivity.tool}
-                          </span>{" "}
-                          <span class="dim">{s.lastActivity.summary}</span>
-                        </span>
-                        <span class="faint" style={{ "font-size": "11px" }}>
-                          {formatRelative(s.lastActivity.at)}
-                        </span>
-                      </div>
-                    </td>
+                    <td class="mono dim">{formatUptime(s.created_at)}</td>
+                    <td class="mono faint">{s.session_id}</td>
                   </tr>
                 )}
               </For>

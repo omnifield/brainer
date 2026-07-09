@@ -15,7 +15,7 @@ export function TaskBoard(): JSX.Element {
 
   const byStatus = (status: TaskStatus) => state.tasks.filter((t) => t.status === status);
   const sessionScope = (id: string | null) =>
-    state.sessions.find((s) => s.id === id)?.scope ?? "unassigned";
+    state.sessions.find((s) => s.session_id === id)?.role ?? "unassigned";
 
   const add = async (e: Event) => {
     e.preventDefault();
@@ -49,8 +49,8 @@ export function TaskBoard(): JSX.Element {
           <option value="">Unassigned</option>
           <For each={state.sessions}>
             {(s) => (
-              <option value={s.id}>
-                {s.scope} · {s.repo}
+              <option value={s.session_id}>
+                {s.role} · {s.repo}
               </option>
             )}
           </For>

@@ -6,7 +6,8 @@
   "description": "Omnifield Brainer — control-panel dashboard (interface MVP, contract-first vs mock adapter)",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "gen:types": "node scripts/gen-types.mjs --write",
+    "build": "node scripts/gen-types.mjs --check && tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -21,6 +22,7 @@
     "@solidjs/testing-library": "^0.8.10",
     "@testing-library/jest-dom": "^6.6.3",
     "jsdom": "^26.0.0",
+    "json-schema-to-typescript": "^15.0.4",
     "typescript": "^5.7.3",
     "vite": "^6.3.5",
     "vite-plugin-solid": "^2.11.6",

@@ -1,4 +1,5 @@
-import type { SessionStatus, TaskStatus } from "../api/types";
+import type { TaskStatus } from "../api/types";
+import type { SessionState } from "../store/chat/reducer";
 
 // Pure presentation helpers — no DOM, no framework. Unit-tested (format.test.ts)
 // so the "dumb UI" reads these instead of embedding logic in components.
@@ -32,12 +33,12 @@ export function formatRelative(iso: string, now: number = Date.now()): string {
   return `${days}d ago`;
 }
 
-export const STATUS_LABEL: Record<SessionStatus, string> = {
-  idle: "Idle",
-  working: "Working",
-  blocked: "Blocked",
-  done: "Done",
-  error: "Error",
+// Control-channel session status vocabulary (kernel StatusPayload.state).
+export const STATUS_LABEL: Record<SessionState, string> = {
+  starting: "Starting",
+  running: "Running",
+  waiting: "Waiting",
+  stopped: "Stopped",
 };
 
 export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
@@ -47,10 +48,10 @@ export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
   done: "Done",
 };
 
-export const SESSION_STATUSES: SessionStatus[] = ["idle", "working", "blocked", "done", "error"];
+export const SESSION_STATUSES: SessionState[] = ["starting", "running", "waiting", "stopped"];
 export const TASK_STATUSES: TaskStatus[] = ["todo", "in-progress", "blocked", "done"];
 
-/** True when a session can no longer act (used to gate stop/stream controls). */
-export function isTerminal(status: SessionStatus): boolean {
-  return status === "done" || status === "error";
+/** True when a session can no longer act (used to gate the stop/send controls). */
+export function isTerminal(status: SessionState): boolean {
+  return status === "stopped";
 }

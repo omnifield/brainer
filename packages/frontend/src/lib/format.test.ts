@@ -45,15 +45,15 @@ describe("formatRelative", () => {
 });
 
 describe("status helpers", () => {
-  it("isTerminal is true only for done/error", () => {
-    expect(isTerminal("done")).toBe(true);
-    expect(isTerminal("error")).toBe(true);
-    expect(isTerminal("working")).toBe(false);
-    expect(isTerminal("idle")).toBe(false);
-    expect(isTerminal("blocked")).toBe(false);
+  it("isTerminal is true only for stopped", () => {
+    expect(isTerminal("stopped")).toBe(true);
+    expect(isTerminal("starting")).toBe(false);
+    expect(isTerminal("running")).toBe(false);
+    expect(isTerminal("waiting")).toBe(false);
   });
   it("labels cover every status", () => {
-    expect(STATUS_LABEL.working).toBe("Working");
+    expect(STATUS_LABEL.running).toBe("Running");
+    expect(STATUS_LABEL.waiting).toBe("Waiting");
     expect(TASK_STATUS_LABEL["in-progress"]).toBe("In progress");
   });
 });

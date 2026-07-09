@@ -1,24 +1,17 @@
 import { createContext, type JSX, useContext } from "solid-js";
 import { createStore, produce } from "solid-js/store";
+import type { LaunchInput, SessionSummary } from "../api/backend/contract";
+import { launchSession, listSessions, stopSession } from "../api/backend/sessions";
 import type { ApiClient } from "../api/client";
-import type {
-  ActivityEvent,
-  AssignBriefInput,
-  CreateSessionInput,
-  CreateTaskInput,
-  Session,
-  Task,
-  TaskStatus,
-  Unsubscribe,
-} from "../api/types";
-import { isTerminal } from "../lib/format";
+import type { CreateTaskInput, Task, TaskStatus } from "../api/types";
 
-// Reactive fleet state + actions. This is where the (little) client-orchestration
-// logic lives, so screens stay dumb: they read `state` and call `actions`. The
-// store owns nothing the contract doesn't — it mirrors the ApiClient responses.
+// Fleet state + actions. Sessions are REAL now — the control-channel backend (listSessions /
+// launch / stop). Task-board stays on the mock ApiClient (a parallel track, brief §Вне скоупа).
+// The dead interface-MVP activity stream is gone: the chat view owns its own SSE (store/chat).
+// Live session status is kept fresh by a light poll (the list projection has no push channel).
 
 export interface FleetState {
-  sessions: Session[];
+  sessions: SessionSummary[];
   tasks: Task[];
   loaded: boolean;
   error: string | null;
@@ -26,16 +19,14 @@ export interface FleetState {
 
 export interface FleetActions {
   load(): Promise<void>;
-  spawn(input: CreateSessionInput): Promise<string>;
-  stop(id: string): Promise<void>;
-  assignBrief(id: string, input: AssignBriefInput): Promise<void>;
+  /** Launch a headless session; returns its id. Refreshes the list so it appears immediately. */
+  launch(input: LaunchInput): Promise<string>;
+  stop(id: string, force?: boolean): Promise<void>;
   addTask(input: CreateTaskInput): Promise<void>;
   setTaskStatus(id: string, status: TaskStatus): Promise<void>;
-  /** Fold a streamed activity event into the matching session. */
-  applyEvent(e: ActivityEvent): void;
-  /** Subscribe live streams for all currently non-terminal sessions. */
-  startLive(): void;
-  stopLive(): void;
+  /** Poll the session list so statuses stay live (the projection has no server push). */
+  startPolling(intervalMs?: number): void;
+  stopPolling(): void;
 }
 
 export function createFleetStore(client: ApiClient): [FleetState, FleetActions] {
@@ -46,66 +37,37 @@ export function createFleetStore(client: ApiClient): [FleetState, FleetActions] 
     error: null,
   });
 
-  const subs = new Map<string, Unsubscribe>();
+  let pollTimer: ReturnType<typeof setInterval> | null = null;
 
-  const applyEvent = (e: ActivityEvent) => {
-    setState(
-      produce((s) => {
-        const session = s.sessions.find((x) => x.id === e.sessionId);
-        if (!session) return;
-        session.lastActivity = { tool: e.tool, at: e.at, summary: e.summary };
-        if (e.status) session.status = e.status;
-      }),
-    );
-  };
-
-  const startLive = () => {
-    for (const session of state.sessions) {
-      if (subs.has(session.id) || isTerminal(session.status)) continue;
-      subs.set(session.id, client.streamSession(session.id, applyEvent));
+  const refreshSessions = async () => {
+    try {
+      const sessions = await listSessions();
+      setState("sessions", sessions);
+      setState("error", null);
+    } catch (err) {
+      setState("error", String(err));
     }
-  };
-
-  const stopLive = () => {
-    for (const unsub of subs.values()) unsub();
-    subs.clear();
   };
 
   const actions: FleetActions = {
     async load() {
       try {
-        const [sessions, tasks] = await Promise.all([client.listSessions(), client.listTasks()]);
+        const [sessions, tasks] = await Promise.all([listSessions(), client.listTasks()]);
         setState({ sessions, tasks, loaded: true, error: null });
       } catch (err) {
-        setState("error", String(err));
+        setState({ loaded: true, error: String(err) });
       }
     },
 
-    async spawn(input) {
-      const { id } = await client.createSession(input);
-      const sessions = await client.listSessions();
-      setState("sessions", sessions);
-      startLive();
+    async launch(input) {
+      const { id } = await launchSession(input);
+      await refreshSessions();
       return id;
     },
 
-    async stop(id) {
-      await client.stopSession(id);
-      const unsub = subs.get(id);
-      if (unsub) {
-        unsub();
-        subs.delete(id);
-      }
-      setState(
-        produce((s) => {
-          const session = s.sessions.find((x) => x.id === id);
-          if (session) session.status = "done";
-        }),
-      );
-    },
-
-    async assignBrief(id, input) {
-      await client.assignBrief(id, input);
+    async stop(id, force = false) {
+      await stopSession(id, force);
+      await refreshSessions();
     },
 
     async addTask(input) {
@@ -115,12 +77,25 @@ export function createFleetStore(client: ApiClient): [FleetState, FleetActions] 
 
     async setTaskStatus(id, status) {
       const updated = await client.updateTask(id, { status });
-      setState("tasks", (t) => t.map((x) => (x.id === id ? updated : x)));
+      setState(
+        produce((s) => {
+          const idx = s.tasks.findIndex((t) => t.id === id);
+          if (idx !== -1) s.tasks[idx] = updated;
+        }),
+      );
     },
 
-    applyEvent,
-    startLive,
-    stopLive,
+    startPolling(intervalMs = 5000) {
+      actions.stopPolling();
+      pollTimer = setInterval(() => void refreshSessions(), intervalMs);
+    },
+
+    stopPolling() {
+      if (pollTimer !== null) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    },
   };
 
   return [state, actions];

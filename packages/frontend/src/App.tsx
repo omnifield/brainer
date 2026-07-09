@@ -1,5 +1,5 @@
 import { A, useLocation } from "@solidjs/router";
-import { For, type JSX, onMount, Show } from "solid-js";
+import { For, type JSX, onCleanup, onMount, Show } from "solid-js";
 import { api } from "./api";
 import { toastMessage } from "./lib/toast";
 import { FleetProvider, useFleet } from "./store/fleet";
@@ -27,13 +27,14 @@ function Shell(props: { children?: JSX.Element }): JSX.Element {
 
   onMount(async () => {
     await actions.load();
-    actions.startLive();
+    actions.startPolling();
   });
+  onCleanup(() => actions.stopPolling());
 
   const isActive = (href: string, end: boolean) =>
     end ? location.pathname === href : location.pathname.startsWith(href);
 
-  const workingCount = () => state.sessions.filter((s) => s.status === "working").length;
+  const workingCount = () => state.sessions.filter((s) => s.status === "running").length;
   const openTasks = () => state.tasks.filter((t) => t.status !== "done").length;
 
   return (
@@ -61,7 +62,7 @@ function Shell(props: { children?: JSX.Element }): JSX.Element {
         </For>
         <div class="spacer" />
         <div class="faint" style={{ padding: "10px", "font-size": "11px" }}>
-          mock adapter · contract-first
+          live control-channel · contract-first
         </div>
       </nav>
       <main class="main">{props.children}</main>

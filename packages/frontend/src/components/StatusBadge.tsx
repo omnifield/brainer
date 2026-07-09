@@ -1,11 +1,12 @@
 import type { JSX } from "solid-js";
-import type { SessionStatus, TaskStatus } from "../api/types";
+import type { TaskStatus } from "../api/types";
 import { STATUS_LABEL, TASK_STATUS_LABEL } from "../lib/format";
+import type { SessionState } from "../store/chat/reducer";
 
 // Dumb presentational badge — maps a status to a labelled, colour-coded chip.
 // Colours are driven by data attributes so all theming lives in CSS.
 
-export function StatusBadge(props: { status: SessionStatus }): JSX.Element {
+export function StatusBadge(props: { status: SessionState }): JSX.Element {
   return (
     <span class="badge" data-status={props.status}>
       <span class="badge-dot" />
