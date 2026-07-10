@@ -43,4 +43,7 @@ fi
 if [ "$#" -eq 0 ]; then
   set -- claude
 fi
-exec docker exec -it -e "OMNIFIELD_SCOPE=$SCOPE" "$NAME" "$@"
+# -t только на живом терминале: скрипт зовут и не-интерактивно (оркестратор/CI).
+TTY_FLAGS='-i'
+[ -t 0 ] && TTY_FLAGS='-it'
+exec docker exec $TTY_FLAGS -e "OMNIFIELD_SCOPE=$SCOPE" "$NAME" "$@"
