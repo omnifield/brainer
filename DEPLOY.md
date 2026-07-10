@@ -44,15 +44,9 @@ cd ~/omnifield/brainer
   vite `base=/brainer/`. Пути контракта — относительно base, owner'ы держат
   base конфигом, не хардкодят.
 
-## ⚠️ Переходное состояние (до исполнения parity-брифов)
-
-Пока НЕ исполнены `briefs/gateway-parity-frontend.md`,
-`briefs/gateway-parity-backend.md` и заказ devopser
-(`devopser/briefs/gateway-hub-single-origin.md`), код живёт на фактических
-портах **8000 (uvicorn) / 5173 (vite)** без префиксов — временный доступ
-напрямую `http://localhost:5173`. Лаунчер публикует оба набора портов; после
-parity-фиксов 8000/5173 убираются из `scripts/devbox-session.sh` и
-`.devcontainer/devcontainer.json` (правка architect).
+Parity-брифы исполнены 2026-07-11 (frontend `385ef7b`, backend `0a29b9c`,
+gateway-стек devopser поднят) — single-origin флоу живой end-to-end, временные
+порты 8000/5173 сняты.
 
 ## Prerequisites / observability (опционально для функционального dev)
 

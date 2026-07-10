@@ -24,13 +24,12 @@
   },
   "postCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.local/share/pnpm/store /home/vscode/.secrets && (timeout 20 npm whoami --registry=https://npm.pkg.github.com >/dev/null 2>&1 || { echo '✖ npm.pkg.github.com: нет валидного PAT в $NPM_CONFIG_USERCONFIG (секрет-volume omnifield-secrets) — @omnifield-пакеты не встанут. Занос кредов: devbox/README §Пост-шаги'; exit 1; }) && pnpm install",
 
-  // Наружу с хоста: backend (uvicorn) + frontend (vite). 8000/5173 — фактические
-  // порты кода; 8010/3500 — порт-контракт DEPLOY.md (бриф fix-frontend-port-3500,
-  // не исполнен) — держим оба набора до исполнения контракта.
+  // Наружу с хоста: backend (uvicorn :8010) + frontend (vite :3500) — внутренние
+  // targets gateway (single-origin, DEPLOY.md); в UX — только gateway :8080.
   // ⚠️ devcontainer-CLI forwardPorts НЕ публикует (подсказка IDE) — для CLI-пути
   // appPort / docker run -p (devbox/README §Роль-сессии; scripts/devbox-session.sh).
-  "forwardPorts": [8000, 5173, 8010, 3500],
-  "appPort": [8000, 5173, 8010, 3500],
+  "forwardPorts": [8010, 3500],
+  "appPort": [8010, 3500],
 
   // Docker Desktop даёт host.docker.internal из коробки; add-host покрывает голый
   // docker-engine (host-gateway) — «для чистоты» из ревью.

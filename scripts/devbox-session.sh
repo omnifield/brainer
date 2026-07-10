@@ -19,11 +19,10 @@ WORKSPACE="$HOME/omnifield/brainer"
 
 if ! docker inspect "$NAME" >/dev/null 2>&1; then
   # Порты наружу: devcontainer-CLI forwardPorts не публикует (README devbox) —
-  # публикуем явно. 8000 backend (uvicorn) + 5173 frontend (vite) — фактические
-  # порты кода; 8010/3500 — порт-контракт DEPLOY.md (бриф fix-frontend-port-3500),
-  # публикуем оба набора до исполнения контракта.
+  # публикуем явно. 8010 backend + 3500 frontend — внутренние targets gateway
+  # (single-origin, DEPLOY.md); в UX — только gateway :8080.
   docker run -d --name "$NAME" \
-    -p 8000:8000 -p 5173:5173 -p 8010:8010 -p 3500:3500 \
+    -p 8010:8010 -p 3500:3500 \
     -v "$WORKSPACE:/workspaces/brainer" -w /workspaces/brainer \
     -v omnifield-secrets:/home/vscode/.secrets \
     -v omnifield-pnpm-store:/home/vscode/.local/share/pnpm/store \
