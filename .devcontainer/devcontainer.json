@@ -4,8 +4,15 @@
   "name": "omnifield-devbox",
   "image": "ghcr.io/omnifield/devbox:v2026.07.10",
   "remoteUser": "vscode",
-  "mounts": ["source=omnifield-pnpm-store,target=/home/vscode/.local/share/pnpm/store,type=volume"],
-  "postCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.local/share/pnpm/store && (timeout 20 npm whoami --registry=https://npm.pkg.github.com >/dev/null 2>&1 || { echo '✖ npm.pkg.github.com: нет валидного PAT в ~/.npmrc контейнера — @omnifield-пакеты не встанут. Образец: devopser workstation/README §Пост-шаги п.3'; exit 1; }) && pnpm install",
+  "mounts": [
+    "source=omnifield-pnpm-store,target=/home/vscode/.local/share/pnpm/store,type=volume",
+    // node_modules НЕ делим с хостом (Д6 фидбека): Windows-сборка (junctions,
+    // платформенные бинари) несовместима с Linux-контейнером в обе стороны —
+    // named volume поверх пути даёт каждому свою копию.
+    "source=brainer-node-modules,target=/workspaces/brainer/node_modules,type=volume",
+    "source=brainer-frontend-node-modules,target=/workspaces/brainer/packages/frontend/node_modules,type=volume"
+  ],
+  "postCreateCommand": "sudo chown vscode:vscode /home/vscode/.local/share/pnpm/store /workspaces/brainer/node_modules /workspaces/brainer/packages/frontend/node_modules && (timeout 20 npm whoami --registry=https://npm.pkg.github.com >/dev/null 2>&1 || { echo '✖ npm.pkg.github.com: нет валидного PAT в ~/.npmrc контейнера — @omnifield-пакеты не встанут. Образец: devopser workstation/README §Пост-шаги п.3'; exit 1; }) && pnpm install",
 
   // Наружу с хоста: backend (uvicorn, DEPLOY.md) + frontend (vite).
   "forwardPorts": [8010, 3500],
