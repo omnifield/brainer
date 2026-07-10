@@ -1,74 +1,68 @@
 # DEPLOY (dev) — как запускать Omnifield Brainer
 
-## Принцип: brainer крутится НА ХОСТЕ, не в контейнере
+## Принципы (канон)
 
-Наш «докер» (оракул `capsule/docker/`) — это тонкий слой: `gateway` (nginx :8080, тупой
-прокси) + `observability` (Loki/Prometheus/Grafana) + minio. **Апы и бэки живут на ХОСТЕ**,
-gateway лишь проксирует на `host.docker.internal:<port>` (learn→:3100, studio→:3050, …).
-
-brainer садится в тот же паттерн — и это **обязательно**, а не удобство: его backend
-**спавнит claude-процессы** (claude CLI + репо + креды = хостовое). Из контейнера так нельзя,
-на хосте — штатно. → frontend (vite) + backend (uvicorn) запускаем на хосте.
-
-## Порты (закреплено, architect)
-
-| Компонент | Порт | Прим. |
-|---|---|---|
-| brainer frontend (vite) | **3500** | base см. ниже |
-| brainer backend (uvicorn) | **8010** | нативный префикс `/brainer/` |
-
-Свободны относительно занятых (3000/3050/3100/3200/3333/3400/9090, 8001–8007).
-
-## Контракт-база (frontend ↔ backend)
-
-Backend отдаёт контракт под нативным префиксом `/brainer/` (как `svc_learn` под `/learn/`).
-Frontend `ApiClient` base — env-конфиг (`VITE_API_BASE`):
-- **dev-direct:** `http://localhost:8010/brainer` (фронт → бэк напрямую, gateway не нужен).
-- **gateway (parity):** `/api/brainer` (см. опциональный шаг ниже).
-
-Пути контракта (`/sessions`, `/tasks`, …) — относительно base. Owner'ы фронта/бэка держат base
-конфигом, не хардкодят.
-
-## Prerequisites
-
-Observability-стек поднят (backend читает Loki/Prometheus):
-```
-cd <capsule>/docker/observability && docker compose up -d
-```
-- Loki **:3100** (доэкспожен на хост для brainer-backend), Prometheus **:9090**, collector **:4317**, Grafana **:3333**.
-- Backend читает активность из Loki `{scope="X"}` и метрики из Prometheus `claude_code_*`.
-- Backend при спавне сессии сам инжектит OTEL-env на `:4317` → любая запущенная сессия
-  эмитит телеметрию (см. `briefs/backend-mvp.md`).
+1. **Containers-only** (фундамент user 2026-07-10, devopser
+   `briefs/containers-only-and-management.md`): на машине — только Docker и
+   файлы. Backend, frontend и claude-сессии (их спавнит backend; claude CLI +
+   креды живут в секрет-volume) исполняются в devbox-контейнере. Хост-путь —
+   легаси (чекпойнт `container-sessions-default`).
+2. **Single-origin, dev = prod** (ADR 068; решение user 2026-07-11): всё
+   проксится через nginx-gateway — и в dev тоже. Прямые порты — внутренняя
+   деталь (targets gateway, реестр — devopser `registry/ports.md`), из UX и
+   доков они убраны. Грабля «в dev на портах ок, в прод через nginx — нет»
+   закрыта классом: другого флоу нет.
+3. **Одна дверь — хаб**: `http://localhost:8080/` (gateway, стек devopser) —
+   индекс всего живого; дашборд brainer — `http://localhost:8080/brainer/`.
 
 ## Запуск (dev)
 
+```sh
+# из WSL-шелла (Ubuntu), рабочая копия ~/omnifield/brainer
+cd ~/omnifield/brainer
+
+# 1. gateway-стек devopser поднят (одна команда их README, живёт постоянно)
+
+# 2. backend (в контейнере)
+./scripts/devbox-session.sh main bash -c \
+  'cd packages/backend && uv run uvicorn app.main:app --host 0.0.0.0 --port 8010'
+
+# 3. frontend (в контейнере)
+./scripts/devbox-session.sh main bash -c \
+  'cd packages/frontend && pnpm dev --host 0.0.0.0'
 ```
-# 1. observability up (см. выше)
-# 2. backend
-cd packages/backend && uv run uvicorn <app> --host 0.0.0.0 --port 8010 --reload
-# 3. frontend
-cd packages/frontend && pnpm dev   # vite на :3500, VITE_API_BASE=http://localhost:8010/brainer
-```
-Открываешь `http://localhost:3500` — дашборд на реальном backend'е.
 
-## Опционально: single-origin через gateway (prod-parity, ADR 068)
+Открываешь `http://localhost:8080/brainer/` — дашборд на реальном backend'е
+(фронт → `/api/brainer/*` → gateway → backend, same-origin; SSE через gateway
+без буферизации).
 
-Не нужно для MVP (фронт ходит на бэк напрямую). Когда захотим один origin :8080 —
-в `capsule/docker/gateway/nginx.conf`:
-```nginx
-upstream app_brainer { server host.docker.internal:3500; keepalive 64; }
-upstream svc_brainer { server host.docker.internal:8010; keepalive 16; }
-# ...
-location /brainer/      { proxy_pass http://app_brainer; }             # фронт (base '/brainer/')
-location /api/brainer/  { proxy_pass http://svc_brainer/brainer/;      # бэк
-                          proxy_buffering off; }                        # SSE /stream
-```
-Reload без пересборки: `docker exec capsule-gateway nginx -s reload`. Тогда всё под
-`http://localhost:8080/brainer/`, а `VITE_API_BASE=/api/brainer`. Это правка ОРАКУЛА
-(gateway там) — делает architect, когда решим parity.
+## Контракт-база (frontend ↔ backend)
 
-## Контейнеризация brainer (потом, ADR 072)
+- Backend отдаёт контракт под **нативным префиксом `/brainer/`**
+  (`:8010/brainer/sessions` работает и без gateway — префикс в коде, не в прокси).
+- Frontend: `VITE_API_BASE=/api/brainer` (same-origin через gateway),
+  vite `base=/brainer/`. Пути контракта — относительно base, owner'ы держат
+  base конфигом, не хардкодят.
 
-Полный self-host (compose с frontend+backend контейнерами) — отдельная фаза. Упирается в
-решение «где крутятся агенты»: хостовый launcher-демон vs агенты-в-контейнерах (docker-socket).
-Не MVP.
+## ⚠️ Переходное состояние (до исполнения parity-брифов)
+
+Пока НЕ исполнены `briefs/gateway-parity-frontend.md`,
+`briefs/gateway-parity-backend.md` и заказ devopser
+(`devopser/briefs/gateway-hub-single-origin.md`), код живёт на фактических
+портах **8000 (uvicorn) / 5173 (vite)** без префиксов — временный доступ
+напрямую `http://localhost:5173`. Лаунчер публикует оба набора портов; после
+parity-фиксов 8000/5173 убираются из `scripts/devbox-session.sh` и
+`.devcontainer/devcontainer.json` (правка architect).
+
+## Prerequisites / observability (опционально для функционального dev)
+
+Observability-стек (Loki/Prometheus/Grafana/OTEL-collector `:4317`) — стек
+devopser; без него продукт работает, телеметрия сессий уходит в никуда.
+`BRAINER_OTEL_ENDPOINT` уже прокинут в контейнер
+(`http://host.docker.internal:4317`, см. `.devcontainer/devcontainer.json`).
+
+## Контейнеризация полным compose (потом, ADR 072)
+
+Отдельная фаза: frontend+backend как контейнеры compose-стека вместо
+devbox-процессов. Упирается в решение «где крутятся агенты» — после стаба
+local-agents (слой B). Не сейчас.

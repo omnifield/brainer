@@ -1,5 +1,8 @@
 # Brief — 🕳 fix: vite port 5173 → 3500 (порт-контракт)
 
+> **⛔ ПОГЛОЩЁН** (2026-07-11, не исполнялся): порт-часть вшита в
+> `gateway-parity-frontend.md` (single-origin, решение user). Исполнять ТОТ бриф.
+
 | | |
 |---|---|
 | **Scope** | `frontend` (`packages/frontend/`) |
