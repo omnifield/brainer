@@ -3,12 +3,19 @@
 Guidance для Claude Code в репо `brainer`. Канон-первоисточник — **`omnifield/commons/standards/`**.
 Вижн/раскладка — `ARCHITECTURE.md`. Здесь — repo-специфика.
 
-## Старт сессии
+## Старт сессии (контейнер = дефолт, канон containers-only)
 
-Сессии — через `.\claude-scope.ps1 -Scope <name>` (ставит `OMNIFIELD_SCOPE`, SessionStart-хук
-кладёт identity-баннер):
-- `-Scope main` → **architect** (full git).
-- `-Scope <zone>` → **owner-<zone>** (commit-only под git-gate).
+Рабочая копия — WSL2 FS: `~/omnifield/brainer` (Ubuntu; с Windows —
+`\\wsl.localhost\Ubuntu\home\egorr\omnifield\brainer`). Сессии живут в devbox-контейнере,
+креды — в машинном volume `omnifield-secrets` (занос один раз — devopser
+`devbox/README.md` §Пост-шаги). Из WSL-шелла: `./scripts/devbox-session.sh <scope>`
+(поднимет контейнер при нужде; ставит `OMNIFIELD_SCOPE`, SessionStart-хук кладёт
+identity-баннер):
+- `main` → **architect** (full git).
+- `<zone>` → **owner-<zone>** (commit-only под git-gate).
+
+Хост-сессии (NTFS-клон, `claude-scope.ps1`) — ЛЕГАСИ, не поддерживаются
+(пересадка 2026-07-10, бриф devopser `container-sessions-brainer.md`).
 
 Перед первым действием: этот файл, `ARCHITECTURE.md`, (owner) `packages/<zone>/README.md`.
 
