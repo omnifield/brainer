@@ -67,29 +67,35 @@ src/
   index.css         # прото-токены (--chat-*) — компоненты ссылаются на переменные, ноль инлайн-стилей
 ```
 
-## Роутинг и неймспейсы (за одним origin)
+## Роутинг и неймспейсы (single-origin через gateway)
 
-API-поверхность backend'а — `/sessions/*` и `/api/*`. **SPA-роут сессии живёт под `/s/:id`**, не
-под `/sessions/:id` — иначе hard-refresh на клиентском роуте `/sessions/:id` уходит в backend и
-отдаёт `{"detail":"Not Found"}` вместо приложения (Ф1). Развод неймспейсов структурен (не
-Accept-sniffing), поэтому одинаково держится в dev (Vite-proxy) и в prod:
+Единственный флоу — **nginx gateway на `http://localhost:8080`**; прямые порты (`:3500` фронта,
+`:8010` backend) — внутренние target'ы gateway, не UX. Фронт живёт под `base = /brainer/`
+(`vite.config.ts`), control-канал зовётся same-origin через `VITE_API_BASE = /api/brainer`
+(дефолт в `api/backend/base.ts`). Развод неймспейсов структурен (не Accept-sniffing), одинаков
+в dev и prod, потому что оба — за одним gateway:
 
-- **dev**: Vite проксирует `/sessions` + `/api` → :8000; всё прочее (`/`, `/s/*`, `/launch`,
-  `/board`) — SPA-fallback на `index.html`.
-- **prod (один origin)**: reverse-proxy обязан отдавать `/sessions/*` + `/api/*` в backend, а всё
-  остальное — на `index.html` (SPA-fallback). `/s/*` в backend НЕ уходит.
+- `/brainer/*` → фронт (dev: vite `host.docker.internal:3500`; prod: статика SPA-fallback на `index.html`).
+- `/api/brainer/*` → backend (gateway `proxy_pass …:8010/brainer/`; см. `gateway-parity-backend.md`).
+
+**SPA-роут сессии живёт под `/s/:id`** (т.е. `/brainer/s/:id`), не под `/sessions/:id` — hard-refresh
+клиентского роута не должен уходить в backend-неймспейс. Vite-proxy на `:8000` удалён — это и был
+двойной флоу, ловивший parity-грабли.
 
 ## Запуск
 
+Только через gateway (dev = prod-флоу). В devbox-контейнере:
+
 ```bash
-pnpm --filter @omnifield/brainer-frontend dev     # :5173, проксирует /sessions + /api → :8000
+pnpm --filter @omnifield/brainer-frontend dev     # vite :3500 (strictPort), target gateway → :8080/brainer/
 ```
 
-Нужен запущенный backend (`packages/backend`, :8000) для реальных сессий и стрима. В проде фронт
-ходит на backend через `VITE_API_BASE` (см. `api/backend/base.ts`), в dev — через Vite-proxy.
+Открывать **`http://localhost:8080/brainer/`** (не `:3500` напрямую — это внутренний target).
+Нужен поднятый gateway (`devopser stacks/gateway`, :8080) и — для реальных сессий/стрима — backend
+под `/api/brainer/*`. Env-override: `VITE_API_BASE` целит backend напрямую (не-gateway раскладки).
 
 Тесты: `pnpm --filter @omnifield/brainer-frontend test`. Lint: `... lint`. Build: `... build`
-(включает `gen:types --check` + `tsc` + `vite build`).
+(включает `gen:types --check` + `tsc` + `vite build`; артефакт собран с `base=/brainer/`).
 
 ## Границы / эскалация к architect
 

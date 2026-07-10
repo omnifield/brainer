@@ -1,8 +1,9 @@
 // Base URL + JSON fetch helper for the backend BFF. All network side-effects live under api/
-// (brief §5). In dev the base is "" and Vite proxies /sessions + /api to :8000; set VITE_API_BASE
-// to point straight at a deployed backend.
+// (brief §5). The app runs single-origin behind the nginx gateway (:8080): the default base
+// /api/brainer is the same-origin path the gateway proxies to the backend — one value, identical
+// in dev/build/test. Override VITE_API_BASE to point straight at a backend (non-gateway topologies).
 
-const BASE: string = (import.meta.env?.VITE_API_BASE as string | undefined) ?? "";
+const BASE: string = (import.meta.env?.VITE_API_BASE as string | undefined) ?? "/api/brainer";
 
 export function backendUrl(path: string): string {
   return `${BASE}${path}`;
