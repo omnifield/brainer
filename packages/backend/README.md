@@ -11,6 +11,8 @@ FastAPI-сервер, реализующий **control-канал** над kerne
 
 ## Поток
 
+Пути ниже — под префиксом `/brainer` (напр. `POST /brainer/sessions` на проводе).
+
 ```
 POST /sessions ──▶ ChannelHub.launch ──▶ ClaudeCodeAdapter.launch ──▶ ClaudeSDKClient (headless)
                         │                        │
@@ -33,11 +35,16 @@ POST /sessions/{id}/stop ──▶ adapter.stop() = interrupt (soft) / disconnec
 
 ## Запуск
 
+Весь контракт живёт под **нативным префиксом `/brainer/`** (gateway-parity: nginx проксирует
+`location /api/brainer/ { proxy_pass …:8010/brainer/; }`, как `svc_learn` под `/learn/`). Нативный
+= работает и без gateway (`curl :8010/brainer/sessions`); корневой поверхности НЕ держим.
+
 ```bash
 cd packages/backend
 uv sync
-uv run uvicorn app.main:app --reload      # :8000
-curl http://localhost:8000/sessions
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8010   # порт-контракт DEPLOY (registry devopser)
+curl http://localhost:8010/brainer/sessions              # прямо → 200 []
+# через gateway (когда поднят): curl http://localhost:8080/api/brainer/sessions
 ```
 
 Prereq: Claude Code CLI установлен и авторизован (SDK спавнит его headless). Реестр сессий — sqlite

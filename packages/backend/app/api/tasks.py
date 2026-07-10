@@ -1,5 +1,8 @@
 """Task routes = the contract's task board surface (thin).
 
+Mounted under the native `/brainer` prefix in the app factory (gateway parity); paths below are
+relative to it, i.e. `/brainer/api/tasks` on the wire.
+
   GET   /api/tasks        -> [Task]
   POST  /api/tasks        {sessionId?, title, status?} -> Task
   PATCH /api/tasks/:id     {title?, status?, sessionId?} -> Task

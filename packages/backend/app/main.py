@@ -1,6 +1,10 @@
 """App factory + ASGI entrypoint.
 
-  uv run uvicorn app.main:app --reload
+  uv run uvicorn app.main:app --host 0.0.0.0 --port 8010
+
+The whole contract is served under the native `/brainer/` prefix (gateway parity: nginx proxies
+`/api/brainer/` → `:8010/brainer/`, like svc_learn under `/learn/`). "Native" = `curl
+:8010/brainer/sessions` works without the gateway too; we hold no root-level surface.
 
 On start-up the hub resumes persisted sessions (blueprint В2); on shutdown it tears down live
 clients and closes the registry. CORS is open for the dev dashboard. `create_app(deps=...)` accepts
@@ -12,7 +16,7 @@ from __future__ import annotations
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .api.sessions import router as sessions_router
@@ -41,12 +45,17 @@ def create_app(deps: Deps | None = None) -> FastAPI:
         allow_headers=["*"],
     )
     app.state.deps = resolved
-    app.include_router(sessions_router)
-    app.include_router(tasks_router)
 
-    @app.get("/health")
+    # Native `/brainer` prefix for the whole contract — one mount, existing route shapes preserved.
+    brainer = APIRouter(prefix="/brainer")
+    brainer.include_router(sessions_router)
+    brainer.include_router(tasks_router)
+
+    @brainer.get("/health")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    app.include_router(brainer)
 
     return app
 

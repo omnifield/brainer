@@ -53,22 +53,29 @@ async def client(tmp_path):
 
 
 async def test_health(client):
-    assert (await client.get("/health")).json() == {"status": "ok"}
+    assert (await client.get("/brainer/health")).json() == {"status": "ok"}
+
+
+async def test_root_surface_is_gone(client):
+    # Gateway parity: the whole contract lives under /brainer — we hold no root-level surface.
+    assert (await client.get("/sessions")).status_code == 404
+    assert (await client.get("/health")).status_code == 404
+    assert (await client.get("/api/tasks")).status_code == 404
 
 
 async def test_list_sessions_empty(client):
-    r = await client.get("/sessions")
+    r = await client.get("/brainer/sessions")
     assert r.status_code == 200
     assert r.json() == []
 
 
 async def test_launch_then_listed(client):
-    r = await client.post("/sessions", json={"repo": "omnifield/brainer", "scope": "backend"})
+    r = await client.post("/brainer/sessions", json={"repo": "omnifield/brainer", "scope": "backend"})
     assert r.status_code == 200
     sid = r.json()["id"]
     assert sid == "backend-test"
 
-    sessions = (await client.get("/sessions")).json()
+    sessions = (await client.get("/brainer/sessions")).json()
     assert len(sessions) == 1
     s = sessions[0]
     assert s["session_id"] == sid
@@ -79,45 +86,45 @@ async def test_launch_then_listed(client):
 
 
 async def test_launch_unknown_repo_is_400(client):
-    r = await client.post("/sessions", json={"repo": "nope/nope", "scope": "backend"})
+    r = await client.post("/brainer/sessions", json={"repo": "nope/nope", "scope": "backend"})
     assert r.status_code == 400
 
 
 async def test_send_to_live_session(client):
-    sid = (await client.post("/sessions", json={"repo": "omnifield/brainer", "scope": "backend"})).json()["id"]
-    r = await client.post(f"/sessions/{sid}/messages", json={"text": "hi"})
+    sid = (await client.post("/brainer/sessions", json={"repo": "omnifield/brainer", "scope": "backend"})).json()["id"]
+    r = await client.post(f"/brainer/sessions/{sid}/messages", json={"text": "hi"})
     assert r.json() == {"ok": True}
 
 
 async def test_send_to_unknown_session_is_404(client):
-    assert (await client.post("/sessions/nope/messages", json={"text": "hi"})).status_code == 404
+    assert (await client.post("/brainer/sessions/nope/messages", json={"text": "hi"})).status_code == 404
 
 
 async def test_stop_unknown_session_is_404(client):
-    assert (await client.post("/sessions/nope/stop")).status_code == 404
+    assert (await client.post("/brainer/sessions/nope/stop")).status_code == 404
 
 
 async def test_events_unknown_session_is_404(client):
-    assert (await client.get("/sessions/nope/events")).status_code == 404
+    assert (await client.get("/brainer/sessions/nope/events")).status_code == 404
 
 
 async def test_stop_known_session(client):
-    sid = (await client.post("/sessions", json={"repo": "omnifield/brainer", "scope": "backend"})).json()["id"]
-    r = await client.post(f"/sessions/{sid}/stop", json={"force": True})
+    sid = (await client.post("/brainer/sessions", json={"repo": "omnifield/brainer", "scope": "backend"})).json()["id"]
+    r = await client.post(f"/brainer/sessions/{sid}/stop", json={"force": True})
     assert r.status_code == 200
     assert r.json() == {"ok": True}
 
 
 async def test_task_crud_flow(client):
-    resp = await client.post("/api/tasks", json={"sessionId": None, "title": "wire backend", "status": "todo"})
+    resp = await client.post("/brainer/api/tasks", json={"sessionId": None, "title": "wire backend", "status": "todo"})
     created = resp.json()
     assert created["title"] == "wire backend"
     tid = created["id"]
 
-    tasks = (await client.get("/api/tasks")).json()
+    tasks = (await client.get("/brainer/api/tasks")).json()
     assert any(t["id"] == tid for t in tasks)
 
-    patched = (await client.patch(f"/api/tasks/{tid}", json={"status": "done"})).json()
+    patched = (await client.patch(f"/brainer/api/tasks/{tid}", json={"status": "done"})).json()
     assert patched["status"] == "done"
 
-    assert (await client.patch("/api/tasks/nope", json={"status": "done"})).status_code == 404
+    assert (await client.patch("/brainer/api/tasks/nope", json={"status": "done"})).status_code == 404

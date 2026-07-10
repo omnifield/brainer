@@ -1,5 +1,8 @@
 """Session routes = the control-channel surface (blueprint §1.5). Thin; logic lives in ChannelHub.
 
+Mounted under the native `/brainer` prefix in the app factory (gateway parity); paths below are
+relative to it, i.e. `/brainer/sessions` on the wire.
+
   GET  /sessions                 -> [SessionSummary]        list projection
   POST /sessions                 {repo, scope, brief?, model?} -> {id}   launch (headless)
   GET  /sessions/{id}/events     -> SSE stream (Last-Event-ID = seq reconnect; events as-is)
