@@ -17,6 +17,9 @@ NAME=brainer-devbox
 IMAGE=ghcr.io/omnifield/devbox:v2026.07.10
 # Рабочая копия — от пути самого скрипта (не прибивать к $HOME: место клона свободно).
 WORKSPACE="$(cd "$(dirname "$0")/.." && pwd)"
+# Родитель рабочей копии монтируется ЦЕЛИКОМ в /workspaces: backend управляет
+# соседними репо (weber, …) — им нужно быть видимыми из контейнера тем же слоем.
+OMNIFIELD_DIR="$(dirname "$WORKSPACE")"
 
 if ! docker inspect "$NAME" >/dev/null 2>&1; then
   # Порты наружу: devcontainer-CLI forwardPorts не публикует (README devbox) —
@@ -24,7 +27,7 @@ if ! docker inspect "$NAME" >/dev/null 2>&1; then
   # (single-origin, DEPLOY.md); в UX — только gateway :8080.
   docker run -d --name "$NAME" \
     -p 8010:8010 -p 3500:3500 \
-    -v "$WORKSPACE:/workspaces/brainer" -w /workspaces/brainer \
+    -v "$OMNIFIELD_DIR:/workspaces" -w /workspaces/brainer \
     -v omnifield-secrets:/home/vscode/.secrets \
     -v omnifield-pnpm-store:/home/vscode/.local/share/pnpm/store \
     -e CLAUDE_CONFIG_DIR=/home/vscode/.secrets/claude \
