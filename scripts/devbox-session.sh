@@ -35,6 +35,7 @@ if ! docker inspect "$NAME" >/dev/null 2>&1; then
     -e GIT_CONFIG_GLOBAL=/home/vscode/.secrets/gitconfig \
     -e GH_CONFIG_DIR=/home/vscode/.secrets/gh \
     -e BRAINER_OTEL_ENDPOINT=http://host.docker.internal:4317 \
+    -e 'BRAINER_REPOS=omnifield/brainer=/workspaces/brainer;omnifield/weber=/workspaces/weber;omnifield/chater=/workspaces/chater' \
     --add-host=host.docker.internal:host-gateway \
     "$IMAGE" sleep infinity
   # Fail-fast PAT-проба (класс Д3: без неё pnpm install на свежем volume висит без намёка);
