@@ -1,9 +1,24 @@
 """Settings + the managed-repo registry.
 
-Every managed repo (brainer / writer / …) ships its own `claude-scope.ps1` launcher — that file
-stays as the manual fallback + env reference, but the backend no longer spawns it: sessions are
-headless via the claude-code adapter (control-channel brief). The backend keeps the path→name list
-here. The OTEL collector target is overridable via env (the adapter injects it so metrics flow).
+The registry answers one question: which repos may the backend spawn scoped sessions in, and at
+what cwd. It is resolved with **no path-guessing** — neither parent-counting nor folder-name
+hardcodes (both are stop-signals per canon; a clone into a differently-named dir must still work):
+
+1. **env-first** — `BRAINER_REPOS` is an explicit, trusted list of `name=path` pairs, `;`-separated
+   (e.g. `omnifield/brainer=/workspaces/brainer;omnifield/weber=/workspaces/weber`). When set it is
+   the whole registry — no marker filter, explicit enumeration is trusted. The container launcher
+   injects it (architect wires that after this fix), so no boot defaults are baked into code.
+2. **discovery** (fallback when the env is unset) — walk *up* from this file to our own repo root
+   (first dir carrying the `.claude/` harness marker), then scan its parent: every sibling dir that
+   also carries `.claude/` is a managed repo, named by the `omnifield/<dirname>` convention. No
+   parents[N], no name hardcodes — the marker is the fact "this dir lives under the agent harness".
+
+`claude-scope.ps1` stays in each repo as the manual fallback + env reference, but it is legacy after
+the container migration (new repos never carry it), so it is NOT the discovery marker — `.claude/` is.
+The OTEL collector target is overridable via env (the adapter injects it so metrics flow).
+
+TODO(architect): moving this map into devopser `registry/products.md` as the runtime source is a
+future cross-zone decision; env + discovery is sufficient for now.
 """
 
 from __future__ import annotations
@@ -12,8 +27,8 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-# app/config.py -> …/omnifield/brainer/packages/backend/app -> parents[4] == …/omnifield.
-_OMNIFIELD_ROOT = Path(__file__).resolve().parents[4]
+# The directory a repo carries once it lives under the agent harness — the discovery fact.
+_HARNESS_MARKER = ".claude"
 
 
 @dataclass(frozen=True)
@@ -25,20 +40,56 @@ class Repo:
 
     @property
     def launcher(self) -> Path:
+        # Legacy manual fallback / env reference; not used for discovery (see module docstring).
         return self.path / "claude-scope.ps1"
 
 
+def _parse_repos_env(raw: str) -> dict[str, Repo]:
+    """`name=path;name=path` → registry. Explicit = trusted: no marker filter. Malformed → raise
+    (a silent-empty registry is the very bug this fix removes; surface the misconfig loudly)."""
+    repos: dict[str, Repo] = {}
+    for entry in raw.split(";"):
+        entry = entry.strip()
+        if not entry:
+            continue
+        name, sep, path = entry.partition("=")
+        name, path = name.strip(), path.strip()
+        if not sep or not name or not path:
+            raise ValueError(f"BRAINER_REPOS entry must be 'name=path', got: {entry!r}")
+        repos[name] = Repo(name=name, path=Path(path))
+    return repos
+
+
+def _own_root(start: Path) -> Path | None:
+    """First directory at or above `start` that carries the harness marker."""
+    for d in (start, *start.parents):
+        if (d / _HARNESS_MARKER).is_dir():
+            return d
+    return None
+
+
+def _scan_managed(parent: Path) -> dict[str, Repo]:
+    """Every child of `parent` carrying the harness marker is a managed repo (name by convention)."""
+    repos: dict[str, Repo] = {}
+    try:
+        children = sorted(parent.iterdir())
+    except OSError:
+        return repos
+    for d in children:
+        if d.is_dir() and (d / _HARNESS_MARKER).is_dir():
+            name = f"omnifield/{d.name}"
+            repos[name] = Repo(name=name, path=d)
+    return repos
+
+
+def _discover_repos() -> dict[str, Repo]:
+    root = _own_root(Path(__file__).resolve())
+    return _scan_managed(root.parent) if root is not None else {}
+
+
 def _default_repos() -> dict[str, Repo]:
-    # Only repos that actually carry a claude-scope.ps1 launcher are spawnable (still the env reference).
-    candidates = {
-        "omnifield/brainer": _OMNIFIELD_ROOT / "brainer",
-        "omnifield/writer": _OMNIFIELD_ROOT / "writer",
-    }
-    return {
-        name: Repo(name=name, path=path)
-        for name, path in candidates.items()
-        if (path / "claude-scope.ps1").exists()
-    }
+    raw = os.environ.get("BRAINER_REPOS")
+    return _parse_repos_env(raw) if raw else _discover_repos()
 
 
 @dataclass(frozen=True)

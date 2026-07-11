@@ -53,6 +53,23 @@ Prereq: Claude Code CLI установлен и авторизован (SDK сп
 
 Тесты: `uv run pytest`. Реальный e2e (не в suite): `uv run python tests/e2e_control_channel.py`.
 
+## Реестр управляемых репо
+
+Какие репо backend может спавнить и с каким cwd — решается **без угадывания пути** (ни счёта
+родителей, ни хардкода имён папок; клон в папку с любым именем обязан резолвиться):
+
+- **env-first** — `BRAINER_REPOS`: явный доверенный список `name=path` через `;`, напр.
+  `omnifield/brainer=/workspaces/brainer;omnifield/weber=/workspaces/weber`. Задан → это весь
+  реестр (без маркер-фильтра, явное перечисление доверенное). Env в контейнер прокидывает лаунчер
+  (`devbox-session.sh`), в коде дефолты не прибиты; кривая запись → `ValueError` (не молчаливо пусто).
+- **discovery** (фолбэк без env) — walk **вверх** от `config.py` до своего корня (первая директория
+  с маркером `.claude/`), затем скан её родителя: каждый сосед с `.claude/` = managed repo, имя по
+  конвенции `omnifield/<dirname>`. Маркер — `.claude/` (факт «репо под harness'ом), НЕ `claude-scope.ps1`
+  (легаси после контейнер-пересадки, новые репо его не носят; остаётся ручным fallback'ом).
+
+TODO(architect): перенос карты в devopser `registry/products.md` как runtime-источник — будущее
+cross-zone решение; env + discovery пока достаточно.
+
 ## Раскладка
 
 ```

@@ -12,7 +12,7 @@ import pytest
 from httpx import ASGITransport
 from omnifield_kernel import AgentProvider, AgentSessionHandle, LaunchRequest, SessionStore
 
-from app.config import Settings
+from app.config import Repo, Settings
 from app.deps import build_deps
 from app.main import create_app
 
@@ -45,7 +45,9 @@ class FakeAdapter(AgentProvider):
 @pytest.fixture
 async def client(tmp_path):
     store = SessionStore(tmp_path / "sessions.db")
-    app = create_app(build_deps(Settings(), store=store, adapter=FakeAdapter()))
+    # Inject the registry — the route contract must not depend on the machine's checkout layout.
+    settings = Settings(repos={"omnifield/brainer": Repo(name="omnifield/brainer", path=tmp_path)})
+    app = create_app(build_deps(settings, store=store, adapter=FakeAdapter()))
     transport = ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
