@@ -1,33 +1,43 @@
 import { useNavigate } from "@solidjs/router";
 import { createSignal, For, type JSX, Show } from "solid-js";
-import { KNOWN_REPOS, KNOWN_SCOPES } from "../api/mock/fixtures";
 import { toast } from "../lib/toast";
 import { useFleet } from "../store/fleet";
+import { roleForScope, SUGGESTED_REPOS, SUGGESTED_SCOPES } from "./launch-suggestions";
 
-// Launch — spawn a headless session. Pick repo + scope (the zone identity that drives role +
+// Launch — spawn a headless session. Type any repo + scope (the zone identity that drives role +
 // permission on the backend) + optional model + brief, then POST /sessions and jump to its chat.
 // The brief calls the extra params "role/model"; the wire field is `scope` (see contract.ts).
+//
+// Repo/scope are free-text (`<input>` + `<datalist>`): the backend registry — not a hardcoded
+// frontend list — decides what actually resolves, so any value must be typeable. Suggestions are
+// hints only (see launch-suggestions.ts). An unknown repo comes back as a readable backend error.
 
 export function Launch(): JSX.Element {
   const { actions } = useFleet();
   const navigate = useNavigate();
 
-  const [repo, setRepo] = createSignal(KNOWN_REPOS[0] ?? "");
-  const [scope, setScope] = createSignal("kernel");
+  const [repo, setRepo] = createSignal(SUGGESTED_REPOS[0] ?? "");
+  const [scope, setScope] = createSignal("");
   const [model, setModel] = createSignal("");
   const [briefPath, setBriefPath] = createSignal("");
   const [busy, setBusy] = createSignal(false);
   const [error, setError] = createSignal("");
 
+  const canSubmit = () => repo().trim() !== "" && scope().trim() !== "" && !busy();
+
   const submit = async (e: Event) => {
     e.preventDefault();
     if (busy()) return;
+    if (repo().trim() === "" || scope().trim() === "") {
+      setError("Repo and scope are required.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
       const id = await actions.launch({
-        repo: repo(),
-        scope: scope(),
+        repo: repo().trim(),
+        scope: scope().trim(),
         model: model().trim() || undefined,
         brief: briefPath().trim() || undefined,
       });
@@ -52,23 +62,35 @@ export function Launch(): JSX.Element {
       <form class="form-card" onSubmit={submit}>
         <label class="field">
           <span>Repository</span>
-          <select value={repo()} onChange={(e) => setRepo(e.currentTarget.value)}>
-            <For each={KNOWN_REPOS}>{(r) => <option value={r}>{r}</option>}</For>
-          </select>
+          <input
+            list="launch-repos"
+            value={repo()}
+            placeholder="omnifield/brainer"
+            onInput={(e) => setRepo(e.currentTarget.value)}
+          />
+          <datalist id="launch-repos">
+            <For each={SUGGESTED_REPOS}>{(r) => <option value={r} />}</For>
+          </datalist>
         </label>
 
         <label class="field">
-          <span>Scope</span>
-          <select value={scope()} onChange={(e) => setScope(e.currentTarget.value)}>
-            <For each={KNOWN_SCOPES}>
-              {(sc) => (
-                <option value={sc}>
-                  {sc}
-                  {sc === "main" ? " (architect)" : " (owner)"}
-                </option>
-              )}
+          <span>
+            Scope
+            <Show when={scope().trim() !== ""}>
+              <span class="field-hint"> ({roleForScope(scope())})</span>
+            </Show>
+          </span>
+          <input
+            list="launch-scopes"
+            value={scope()}
+            placeholder="frontend"
+            onInput={(e) => setScope(e.currentTarget.value)}
+          />
+          <datalist id="launch-scopes">
+            <For each={SUGGESTED_SCOPES}>
+              {(sc) => <option value={sc}>{`${sc} (${roleForScope(sc)})`}</option>}
             </For>
-          </select>
+          </datalist>
         </label>
 
         <label class="field">
@@ -97,7 +119,7 @@ export function Launch(): JSX.Element {
           <button type="button" class="btn" onClick={() => navigate("/")}>
             Cancel
           </button>
-          <button type="submit" class="btn btn-primary" disabled={busy()}>
+          <button type="submit" class="btn btn-primary" disabled={!canSubmit()}>
             {busy() ? "Spawning…" : "Spawn session"}
           </button>
         </div>

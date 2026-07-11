@@ -90,6 +90,3 @@ export function seedTasks(): Task[] {
 export const SCOPE_ROLE: Record<string, "architect" | "owner"> = {
   main: "architect",
 };
-
-export const KNOWN_REPOS = ["omnifield/brainer", "omnifield/writer", "omnifield/commons"];
-export const KNOWN_SCOPES = ["main", "kernel", "orchestrator", "backend", "frontend", "content"];

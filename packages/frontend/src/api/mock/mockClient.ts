@@ -12,7 +12,7 @@ import type {
   Unsubscribe,
   UpdateTaskInput,
 } from "../types";
-import { KNOWN_REPOS, SCOPE_ROLE, seedSessions, seedTasks } from "./fixtures";
+import { SCOPE_ROLE, seedSessions, seedTasks } from "./fixtures";
 
 // In-memory implementation of the ApiClient contract. Holds fleet state, answers
 // the same shapes the real backend will, and simulates live telemetry so the UI
@@ -194,5 +194,3 @@ function pick<T>(arr: readonly T[], rand: () => number): T {
 function clone<T>(v: T): T {
   return structuredClone(v);
 }
-
-export { KNOWN_REPOS };

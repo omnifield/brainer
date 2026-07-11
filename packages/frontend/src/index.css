@@ -295,6 +295,9 @@ label.field > span {
   color: var(--text-dim);
   margin-bottom: 6px;
 }
+label.field > span .field-hint {
+  color: var(--accent);
+}
 input,
 select,
 textarea {
