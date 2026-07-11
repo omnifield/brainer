@@ -68,6 +68,11 @@ class SessionChannel:
         self._sid_persisted = handle.provider_state.get("sdk_session_id") is not None
         self._task: asyncio.Task | None = None
         self._dead = False
+        self._started = False  # consumer task running? launch starts it; cold channels start lazily
+        self._start_lock = asyncio.Lock()  # serialize lazy resume so concurrent access resumes once
+        # Coarse persisted lifecycle (active|stopped) — drives resume reconciliation. Persisted only
+        # on flips (not per-event), like the sid capture; absent in the registry ⇒ "active".
+        self._persisted_lifecycle = "stopped" if handle.provider_state.get("status") == "stopped" else "active"
         self.created_at = created_at or _now_iso()
         # Hub-synthetic events (stream_crash / mark_dead) claim a FRESH epoch above the adapter's
         # current one (same mechanic as resume). Otherwise a client reconnecting with a prior-epoch
@@ -79,6 +84,30 @@ class SessionChannel:
     def start(self) -> None:
         """Spawn the consumer task that drains the adapter stream for this session's lifetime."""
         self._task = asyncio.create_task(self._consume(), name=f"channel:{self.handle.session_id}")
+        self._started = True
+
+    async def ensure_started(self) -> None:
+        """Lazily resume the SDK client on first access (send/subscribe). Nothing is spawned at boot
+        (fix: greedy resume leaked an idle claude process per persisted session). Idempotent, and
+        serialized so concurrent first-accessers resume exactly once. A resume failure marks the
+        channel dead + surfaces an error event instead of raising into the request (В2)."""
+        if self._started or self._dead:
+            return
+        async with self._start_lock:
+            if self._started or self._dead:
+                return
+            try:
+                handle = await self._adapter.resume(self.handle)
+            except Exception as exc:
+                with span("channel.resume_failed", session_id=self.handle.session_id):
+                    self.mark_dead("unresumable", str(exc))
+                return
+            self.handle = handle
+            self._sid_persisted = handle.provider_state.get("sdk_session_id") is not None
+            self._dead_seq = _seq_base(handle) + SEQ_BLOCK  # synthetic events ride the fresh epoch
+            if self._store is not None:
+                self._store.put(handle, self.request)
+            self.start()
 
     async def _consume(self) -> None:
         async with aspan("channel.consume", session_id=self.handle.session_id):
@@ -98,6 +127,7 @@ class SessionChannel:
         self._events.append(event)
         self._project(event)
         self._maybe_persist_sid()
+        self._maybe_persist_lifecycle()
         for q in list(self._subscribers):
             q.put_nowait(event)
 
@@ -121,6 +151,20 @@ class SessionChannel:
             self.handle = refreshed
             self._store.put(refreshed, self.request)
             self._sid_persisted = True
+
+    def _maybe_persist_lifecycle(self) -> None:
+        # Persist the coarse active|stopped lifecycle only when it FLIPS, so a restart can tell an
+        # intentionally-stopped session (never resume) from a resumable one (reconcile → 'waiting').
+        # At most a couple of writes per session — not per event, so delivery stays I/O-free.
+        if self._store is None:
+            return
+        lifecycle = "stopped" if self._status == "stopped" else "active"
+        if lifecycle == self._persisted_lifecycle:
+            return
+        self._persisted_lifecycle = lifecycle
+        ps = {**self.handle.provider_state, "status": lifecycle}
+        self.handle = self.handle.model_copy(update={"provider_state": ps})
+        self._store.put(self.handle, self.request)
 
     # ---- subscription ----
 
@@ -156,6 +200,12 @@ class SessionChannel:
         """A session that can still take a `send`: not dead-marked (unresumable) and not crashed."""
         return not self._dead
 
+    @property
+    def is_started(self) -> bool:
+        """Has the consumer task (hence a live SDK client) been spun up? False for a cold channel
+        loaded at boot but not yet accessed — it holds no process to disconnect on shutdown."""
+        return self._started
+
     def summary(self, stored_created: str, stored_updated: str) -> SessionSummary:
         ps = self.handle.provider_state
         return SessionSummary(
@@ -169,9 +219,21 @@ class SessionChannel:
             updated_at=stored_updated,
         )
 
+    def reconcile_waiting(self) -> None:
+        """Resume-time honesty: a restored session has no in-flight turn (SDK-resume = a fresh
+        connection, no turn survives a restart), so it is idle-'waiting' until accessed — never the
+        stale 'running' a crash-before-`done` would otherwise have frozen in the list."""
+        self._status = "waiting"
+
+    def mark_cold_stopped(self) -> None:
+        """A session persisted as intentionally stopped: listed 'stopped', never resumed, and —
+        unlike `mark_dead` — with no error event (it was stopped on purpose, not unrecoverable)."""
+        self._status = "stopped"
+        self._dead = True
+
     def mark_dead(self, code: str, message: str) -> None:
         """No consumer task: preload a stopped-status + error event so subscribers see the failure
-        (used when resume-on-start cannot revive a persisted session — blueprint В2)."""
+        (used when resume cannot revive a persisted session — blueprint В2)."""
         self._dead = True
         self._status = "stopped"
         self._ingest(StatusEvent(session_id=self.handle.session_id, seq=self._next_dead_seq(), ts=_now_iso(),
@@ -226,23 +288,30 @@ class ChannelHub:
 
     async def send(self, session_id: str, text: str) -> bool:
         channel = self._channels.get(session_id)
-        # A dead/ended channel (e.g. unresumable after restart) has no live client — report
-        # "not live" (API → 404) instead of letting the adapter raise a 500 (review П3).
-        if channel is None or not channel.is_live:
+        if channel is None:
+            return False
+        await channel.ensure_started()  # lazy resume: first access spawns the client (fix)
+        # A dead/ended channel (unresumable after restart, or intentionally stopped) has no live
+        # client — report "not live" (API → 404) rather than let the adapter raise a 500 (review П3).
+        if not channel.is_live:
             return False
         await self._adapter.send(channel.handle, text)
         return True
 
-    def subscribe(self, session_id: str, last_event_id: int | None) -> AsyncIterator[Event] | None:
+    async def subscribe(self, session_id: str, last_event_id: int | None) -> AsyncIterator[Event] | None:
         channel = self._channels.get(session_id)
         if channel is None:
             return None
+        await channel.ensure_started()  # opening the stream is a first access → lazy resume (fix)
         return channel.subscribe(last_event_id)
 
     async def stop(self, session_id: str, force: bool = False) -> bool:
         channel = self._channels.get(session_id)
         if channel is None:
             return False
+        # No lazy resume here: spawning a client only to stop it would recreate the idle/zombie
+        # process this fix removes. adapter.stop is a no-op when nothing is live; force still tears
+        # down registry + channel below.
         await self._adapter.stop(channel.handle, force=force)
         if force:
             await channel.aclose()
@@ -259,30 +328,40 @@ class ChannelHub:
         return out
 
     async def resume_all(self) -> None:
-        """Revive persisted sessions on start-up. An unresumable one is marked + surfaced via an
-        error event, never a crash (deliverable 2 / В2)."""
+        """Load the registry into memory as COLD channels — NO SDK client is spawned here. Lazy
+        resume (first send/subscribe) revives the client on demand, so a restart no longer leaks a
+        claude process per persisted session (fix). Status is reconciled honestly:
+
+        - persisted 'stopped' → stays stopped, never resumed;
+        - no sdk_session_id → unresumable, surfaced via an error event, never a crash (В2);
+        - anything else → 'waiting' (no turn survives a restart → no honest 'running' to restore).
+
+        В2 still holds: handles are in memory, the list shows them, and send/subscribe resume."""
         async with aspan("hub.resume_all"):
             for stored in self._store.all():
                 if stored.handle.session_id in self._channels:
                     continue
-                try:
-                    handle = await self._adapter.resume(stored.handle)
-                    self._store.put(handle, stored.request)
-                    channel = SessionChannel(
-                        handle, stored.request, self._adapter, self._store, self._buffer_size,
-                        created_at=stored.created_at,
-                    )
-                    channel.start()
-                    self._channels[handle.session_id] = channel
-                except Exception as exc:
-                    with span("hub.resume_failed", session_id=stored.handle.session_id):
-                        dead = SessionChannel(
-                            stored.handle, stored.request, self._adapter, self._store, self._buffer_size,
-                            created_at=stored.created_at,
-                        )
-                        dead.mark_dead("unresumable", str(exc))
-                        self._channels[stored.handle.session_id] = dead
+                channel = SessionChannel(
+                    stored.handle, stored.request, self._adapter, self._store, self._buffer_size,
+                    created_at=stored.created_at,
+                )
+                ps = stored.handle.provider_state
+                if ps.get("status") == "stopped":
+                    channel.mark_cold_stopped()
+                elif not ps.get("sdk_session_id"):
+                    channel.mark_dead("unresumable", "no sdk_session_id in registry — cannot resume")
+                else:
+                    channel.reconcile_waiting()
+                self._channels[stored.handle.session_id] = channel
 
     async def shutdown(self) -> None:
+        """Tear down cleanly: disconnect every live SDK client so no orphaned/<defunct> claude
+        process is left behind (fix), then cancel the consumer tasks. Cold channels never spawned a
+        client (is_started False) — nothing to disconnect."""
         for channel in list(self._channels.values()):
+            if channel.is_started:
+                try:
+                    await self._adapter.stop(channel.handle, force=True)
+                except Exception:  # best-effort reap on shutdown — never block exit on a bad client
+                    pass
             await channel.aclose()

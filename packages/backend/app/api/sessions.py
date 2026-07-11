@@ -91,7 +91,7 @@ async def stop_session(
 async def stream_events(session_id: str, request: Request, deps: Deps = Depends(get_deps)) -> StreamingResponse:
     last = request.headers.get("Last-Event-ID")
     last_event_id = int(last) if last and last.lstrip("-").isdigit() else None
-    stream = deps.hub.subscribe(session_id, last_event_id)
+    stream = await deps.hub.subscribe(session_id, last_event_id)
     if stream is None:
         raise HTTPException(status_code=404, detail=f"session not found: {session_id}")
 

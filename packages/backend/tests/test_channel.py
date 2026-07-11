@@ -142,6 +142,7 @@ class FakeAdapter(AgentProvider):
         self._resume_ok = resume_ok
         self.sent: list[tuple[str, str]] = []
         self.stopped: list[tuple[str, bool]] = []
+        self.resumed: list[str] = []  # records lazy-resume calls, to assert no greedy boot spawn
 
     async def launch(self, request: LaunchRequest) -> AgentSessionHandle:
         return _handle("s1")
@@ -154,6 +155,7 @@ class FakeAdapter(AgentProvider):
             yield e
 
     async def resume(self, handle: AgentSessionHandle) -> AgentSessionHandle:
+        self.resumed.append(handle.session_id)
         if not self._resume_ok:
             raise RuntimeError("boom")
         return handle
@@ -209,8 +211,8 @@ async def test_resume_all_revives_and_marks_dead(store):
     bad = FakeAdapter([], resume_ok=False)
     hub_bad = ChannelHub(bad, store, buffer_size=100)
     await hub_bad.resume_all()
-    # A failed resume still yields a channel that surfaces an error event, not a crash.
-    dead = hub_bad.subscribe("bad", None)
+    # A failed lazy resume (triggered by the subscribe) still yields an error event, not a crash.
+    dead = await hub_bad.subscribe("bad", None)
     events = await _drain(dead)
     assert any(e.type == "error" for e in events)
 
@@ -223,3 +225,64 @@ async def test_send_to_dead_channel_returns_false(store):
     await hub.resume_all()
     assert await hub.send("bad", "hi") is False
     assert bad.sent == []  # the adapter was never asked to send into a dead session
+
+
+def _handle_with_status(sid: str, status: str | None) -> AgentSessionHandle:
+    ps = {"sdk_session_id": "sdk-1", "seq_base": 0, "cwd": "/r", "config_dir": None}
+    if status is not None:
+        ps["status"] = status
+    return AgentSessionHandle(session_id=sid, provider="fake", provider_state=ps)
+
+
+async def test_resume_reconciles_stale_running_to_waiting(store):
+    # Fact 1: a session persisted while active (no terminal 'stopped' marker) must NOT come back as a
+    # stale 'running'/'starting' — no turn survives a restart, so it is idle-'waiting' until accessed.
+    store.put(_handle_with_status("live", status="active"), _request("backend"))
+    hub = ChannelHub(FakeAdapter([]), store, buffer_size=100)
+    await hub.resume_all()
+    summary = next(s for s in hub.list_sessions() if s.session_id == "live")
+    assert summary.status == "waiting"
+
+
+async def test_stopped_session_is_not_resumed(store):
+    # Fix 1: a session persisted as intentionally 'stopped' stays stopped and is never resumed.
+    store.put(_handle_with_status("done", status="stopped"), _request("backend"))
+    adapter = FakeAdapter([])
+    hub = ChannelHub(adapter, store, buffer_size=100)
+    await hub.resume_all()
+    summary = next(s for s in hub.list_sessions() if s.session_id == "done")
+    assert summary.status == "stopped"
+    assert await hub.send("done", "hi") is False  # not live → 404
+    assert adapter.resumed == []  # never spawned a client for a stopped session
+
+
+async def test_resume_all_is_lazy_no_client_until_access(store):
+    # Fix 2 / DoD: N persisted sessions → ZERO resume (client) spawns at boot; first access spawns one.
+    store.put(_handle_with_status("a", status="active"), _request("backend"))
+    store.put(_handle_with_status("b", status="active"), _request("backend"))
+    adapter = FakeAdapter([])
+    hub = ChannelHub(adapter, store, buffer_size=100)
+
+    await hub.resume_all()
+    assert adapter.resumed == []  # nothing spawned at boot
+    assert {s.session_id for s in hub.list_sessions()} == {"a", "b"}  # yet both are listed (В2)
+
+    assert await hub.send("a", "hi") is True
+    assert adapter.resumed == ["a"]  # exactly one, exactly the accessed session
+    assert await hub.send("a", "again") is True
+    assert adapter.resumed == ["a"]  # second access does not re-resume
+
+
+async def test_shutdown_disconnects_live_clients_only(store):
+    # Fix 3: graceful shutdown must disconnect every live SDK client (no <defunct> zombie) — but not
+    # a cold, never-accessed channel (it holds no process).
+    store.put(_handle_with_status("cold", status="active"), _request("backend"))
+    adapter = FakeAdapter([])
+    hub = ChannelHub(adapter, store, buffer_size=100)
+    live_sid = await hub.launch(_request())  # this one is live
+    await hub.resume_all()  # loads "cold" as a cold channel (never accessed)
+
+    await hub.shutdown()
+
+    assert (live_sid, True) in adapter.stopped  # live client force-disconnected
+    assert all(sid != "cold" for sid, _ in adapter.stopped)  # cold channel not touched
