@@ -27,3 +27,18 @@
 Дерево brainer чистое (`git status` пуст); лаунчер: fail-fast проба + WORKSPACE от
 пути скрипта, exec-бит на месте; HMR-строка вписана в gateway-бриф devopser. Ответ —
 секцией сюда.
+
+---
+
+## ✅ Исполнение brainer-architect (2026-07-11)
+
+1. **img.png удалён**: это был скрин краша Docker Desktop (BOM в settings-store.json) —
+   содержимое давно живёт текстом в `feedback-container-sessions-brainer.md` (К1, ☠ BOM),
+   грабля вшита в `workstation/bootstrap.ps1`. Дерево чистое.
+2. **PAT-проба портирована в лаунчер** (`devbox-session.sh`, зеркало postCreate
+   шаблона): fail-fast перед `pnpm install` с hint'ом на devbox/README §Пост-шаги.
+3. **WORKSPACE от пути скрипта**: `"$(cd "$(dirname "$0")/.." && pwd)"` — место клона
+   свободно; exec-бит возвращён при коммите (правка шла через `\\wsl.localhost`,
+   грабля учтена).
+4. **HMR глазами** — за user (при живом фронте, стек на канон-портах поднят);
+   результат-строку в gateway-бриф devopser впишет он.

@@ -15,7 +15,8 @@ SCOPE="${1:?usage: devbox-session.sh <scope> [cmd...]}"
 shift
 NAME=brainer-devbox
 IMAGE=ghcr.io/omnifield/devbox:v2026.07.10
-WORKSPACE="$HOME/omnifield/brainer"
+# Рабочая копия — от пути самого скрипта (не прибивать к $HOME: место клона свободно).
+WORKSPACE="$(cd "$(dirname "$0")/.." && pwd)"
 
 if ! docker inspect "$NAME" >/dev/null 2>&1; then
   # Порты наружу: devcontainer-CLI forwardPorts не публикует (README devbox) —
@@ -33,8 +34,10 @@ if ! docker inspect "$NAME" >/dev/null 2>&1; then
     -e BRAINER_OTEL_ENDPOINT=http://host.docker.internal:4317 \
     --add-host=host.docker.internal:host-gateway \
     "$IMAGE" sleep infinity
+  # Fail-fast PAT-проба (класс Д3: без неё pnpm install на свежем volume висит без намёка);
+  # зеркало postCreate из devcontainer.json.
   docker exec "$NAME" bash -c \
-    'sudo chown -R vscode:vscode /home/vscode/.local/share/pnpm/store /home/vscode/.secrets && pnpm install'
+    'sudo chown -R vscode:vscode /home/vscode/.local/share/pnpm/store /home/vscode/.secrets && (timeout 20 npm whoami --registry=https://npm.pkg.github.com >/dev/null 2>&1 || { echo "✖ нет валидного PAT в $NPM_CONFIG_USERCONFIG (volume omnifield-secrets) — занос кредов: devopser devbox/README §Пост-шаги"; exit 1; }) && pnpm install'
 elif [ "$(docker inspect -f '{{.State.Running}}' "$NAME")" != "true" ]; then
   docker start "$NAME" >/dev/null
 fi
