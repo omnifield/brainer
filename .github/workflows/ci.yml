@@ -32,7 +32,7 @@ jobs:
     strategy:
       # Каждый python-пакет workspace — свой прогон: пакет без прогона в CI = невидимая дыра.
       matrix:
-        pkg: [backend, kernel]
+        pkg: [backend, kernel, bridge]
     defaults:
       run:
         working-directory: packages/${{ matrix.pkg }}
