@@ -32,9 +32,9 @@ if ! docker inspect "$CONTAINER" >/dev/null 2>&1; then
 fi
 if [ -z "$CONTAINER" ]; then
   echo "✖ devbox-контейнер для '$REPO' не найден."
-  echo "  Подними его одним из путей входа (brief A4):"
-  echo "    • VS Code: «Reopen in Container» (.devcontainer/devcontainer.json)"
-  echo "    • raw:     docker run … --name ${REPO}-devbox --network $NETWORK --network-alias $REPO … (без -p; см. devbox/README)"
+  echo "  Подними его одним из путей входа:"
+  echo "    • headless: scripts/devbox.sh up   (провижн из .devcontainer/devcontainer.json, по канону)"
+  echo "    • VS Code:  «Reopen in Container» (.devcontainer/devcontainer.json)"
   exit 1
 fi
 
