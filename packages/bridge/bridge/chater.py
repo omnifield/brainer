@@ -65,6 +65,20 @@ class ChaterClient:
                 return  # already exists — idempotent
             resp.raise_for_status()
 
+    async def list_rooms(self) -> list[Any]:
+        """Room ids the agent is a participant of — chater's `ListRoomsForUser` under our Bearer.
+
+        chater does not push the room list over ws, so auto-discovery polls this (see
+        `loop.RoomSupervisor`). Accepts either a bare list or a `{"rooms": [...]}` envelope; each
+        item is either an id or an object carrying `id`. chater needs no change.
+        """
+        async with aspan("chater.list_rooms", handle=self._handle):
+            resp = await self._http.get("/chater/rooms")
+            resp.raise_for_status()
+            payload = resp.json()
+            items = payload if isinstance(payload, list) else payload.get("rooms", [])
+            return [item.get("id") if isinstance(item, dict) else item for item in items]
+
     async def recent_messages(self, room_id: str, *, limit: int) -> list[Message]:
         async with aspan("chater.recent_messages", room=room_id, limit=limit):
             resp = await self._http.get(f"/chater/rooms/{room_id}/messages", params={"limit": limit})

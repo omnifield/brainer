@@ -19,8 +19,10 @@ enough (forgetting old ids across restarts is harmless — those messages never 
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 from collections import deque
+from collections.abc import Callable
 
 from .agent import Agent
 from .chater import ChaterClient, Message
@@ -136,3 +138,98 @@ async def run_bridge(
         if stop is not None and stop.is_set():
             return
         await asyncio.sleep(reconnect_delay_s)
+
+
+class RoomSupervisor:
+    """Auto-discovery mode: one `Bridge` + ws subscription per room, driven by `GET /chater/rooms`.
+
+    chater does not push the room list over ws, so we poll it every `poll_interval_s`. Each room
+    gets its **own** `Bridge` — therefore its own posted-id set, so self-echo filtering is isolated
+    per room and a reply never crosses rooms. Rooms are added/removed as the poll result changes:
+
+    * a newly-appeared room → spawn a per-room task running `run_bridge` (its own reconnect loop);
+    * a room that dropped out of the list → cancel its task and clean up;
+    * a per-room task that died unexpectedly → reaped and re-subscribed on the next poll.
+
+    Resilience: a failed poll keeps the current subscriptions (logged, not fatal); one room's task
+    failure never touches another room's; the whole thing runs until `stop` is set.
+    """
+
+    def __init__(
+        self,
+        client: ChaterClient,
+        *,
+        make_bridge: Callable[[object], Bridge],
+        ws_url_for: Callable[[object], str],
+        poll_interval_s: float = 10.0,
+        reconnect_delay_s: float = 3.0,
+    ) -> None:
+        self._client = client
+        self._make_bridge = make_bridge
+        self._ws_url_for = ws_url_for
+        self._poll_interval_s = poll_interval_s
+        self._reconnect_delay_s = reconnect_delay_s
+        self._tasks: dict[object, asyncio.Task] = {}
+
+    @property
+    def active_rooms(self) -> set[object]:
+        return set(self._tasks)
+
+    async def run(self, stop: asyncio.Event | None = None) -> None:
+        try:
+            while stop is None or not stop.is_set():
+                await self._poll_once()
+                await self._sleep_or_stop(self._poll_interval_s, stop)
+        finally:
+            await self._shutdown_all()
+
+    async def _poll_once(self) -> None:
+        self._reap_finished()
+        try:
+            rooms = await self._client.list_rooms()
+        except Exception:  # noqa: BLE001 — a failed poll must not drop live subscriptions or crash
+            logger.exception("room discovery poll failed; keeping current subscriptions")
+            return
+        current = set(rooms)
+        for room in current - set(self._tasks):
+            self._start_room(room)
+        for room in set(self._tasks) - current:
+            await self._stop_room(room)
+
+    def _start_room(self, room: object) -> None:
+        bridge = self._make_bridge(room)
+        task = asyncio.create_task(
+            run_bridge(bridge, self._client, self._ws_url_for(room), reconnect_delay_s=self._reconnect_delay_s),
+            name=f"room-{room}",
+        )
+        self._tasks[room] = task
+        logger.info("subscribed to room %s", room)
+
+    async def _stop_room(self, room: object) -> None:
+        task = self._tasks.pop(room, None)
+        if task is None:
+            return
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+        logger.info("unsubscribed from room %s", room)
+
+    def _reap_finished(self) -> None:
+        """Drop tasks that ended on their own so a still-listed room is re-subscribed next poll."""
+        for room, task in list(self._tasks.items()):
+            if not task.done():
+                continue
+            if not task.cancelled() and (exc := task.exception()) is not None:
+                logger.error("room %s task crashed: %r; will re-subscribe", room, exc)
+            self._tasks.pop(room, None)
+
+    async def _sleep_or_stop(self, delay: float, stop: asyncio.Event | None) -> None:
+        if stop is None:
+            await asyncio.sleep(delay)
+            return
+        with contextlib.suppress(asyncio.TimeoutError):
+            await asyncio.wait_for(stop.wait(), timeout=delay)
+
+    async def _shutdown_all(self) -> None:
+        for room in list(self._tasks):
+            await self._stop_room(room)

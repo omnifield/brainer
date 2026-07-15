@@ -65,6 +65,28 @@ async def test_post_message_returns_created_id():
         await client.aclose()
 
 
+async def test_list_rooms_parses_objects_bare_ids_and_wrapped():
+    payloads = iter(
+        [
+            [{"id": 1}, {"id": 2}],  # list of objects
+            [3, 4],  # list of bare ids
+            {"rooms": [{"id": 5}]},  # wrapped envelope
+        ]
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/chater/rooms"
+        return httpx.Response(200, json=next(payloads))
+
+    client = _client(handler)
+    try:
+        assert await client.list_rooms() == [1, 2]
+        assert await client.list_rooms() == [3, 4]
+        assert await client.list_rooms() == [5]
+    finally:
+        await client.aclose()
+
+
 async def test_recent_messages_parses_list_and_wrapped():
     payloads = iter(
         [
