@@ -200,8 +200,14 @@ function probeStartup(svc) {
   const t0 = Date.now();
   // Холодный vite/webpack-билд может превысить фикс-15s → ложный WARN. Дефолт 30s,
   // настраиваемый env'ом (кривой/пустой ввод → дефолт, не 0). Семантику G1-die/детача НЕ трогаем.
-  const parsed = Number.parseInt(process.env.DEVBOX_PROBE_TIMEOUT_MS ?? "", 10);
-  const timeoutMs = Number.isFinite(parsed) && parsed > 0 ? parsed : 30000;
+  // Приоритет: per-service (devbox.services.json probeTimeoutMs) → env → дефолт.
+  // Cold `go run` (докачка модулей + компиляция) легко >30s → щедрый дефолт + per-service override.
+  const svcT = Number.parseInt(String(svc.probeTimeoutMs ?? ""), 10);
+  const envT = Number.parseInt(process.env.DEVBOX_PROBE_TIMEOUT_MS ?? "", 10);
+  const timeoutMs =
+    (Number.isFinite(svcT) && svcT > 0 && svcT) ||
+    (Number.isFinite(envT) && envT > 0 && envT) ||
+    90000;
   for (;;) {
     const bind = probeBind(svc.port);
     if (bind === "all") return { ok: true };
