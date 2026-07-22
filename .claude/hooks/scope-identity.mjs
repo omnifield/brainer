@@ -25,10 +25,10 @@ function architectBanner() {
   return [
     `# Session identity — OMNIFIELD_SCOPE=main (architect)`,
     ``,
-    `Ты в роли **architect/main** репо \`writer\`. Правила — \`CLAUDE.md\` + канон \`omnifield/commons/standards/\`.`,
+    `Ты в роли **architect/main** репо \`brainer\`. Правила — \`CLAUDE.md\` + канон \`omnifield/commons/standards/\`.`,
     ``,
     `- Триаж запросов user; арх-решения (ADR в оракуле → commons), контракты, координация.`,
-    `- **НЕ пиши код зон сам** (\`kernel/ engine/ backend/ frontend/\`) — брифы (\`briefs/\`) → owner-сессии (user запускает через \`claude-scope\`).`,
+    `- **НЕ пиши код зон сам** (\`packages/{kernel,orchestrator,backend,frontend}/\`) — брифы (\`briefs/\`) → owner-сессии (user запускает через \`./scripts/devbox-session.sh\`).`,
     `- Git: полный доступ (commit/push/merge) — marker \`.claude/.main-session-id\` даёт права.`,
     `- Owner-субагенты (Agent tool) и user-launched owner-сессии — под git-gate.`,
   ].join('\n');
@@ -62,7 +62,7 @@ function anomalyBanner(scope) {
   return [
     `# Session identity — OMNIFIELD_SCOPE=${scope} (UNRESOLVED)`,
     ``,
-    `**Аномалия**: scope "${scope}" не резолвится в зону. claude-scope должен был блокировать запуск.`,
+    `**Аномалия**: scope "${scope}" не резолвится в зону. devbox-session.sh должен был блокировать запуск.`,
     `Доступные: ${list}.`,
     ``,
     `**Action**: STOP. Сообщи user — scope невалидный. Не начинай работу (нет boundary/ownership).`,
