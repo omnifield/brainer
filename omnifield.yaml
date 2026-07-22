@@ -1,0 +1,20 @@
+# brainer — fullstack (ПРОДУКТ агентов; его капабилити втягивается в хаб).
+# port = РЕАЛЬНЫЕ внутренние listening-порты (brainer-web 3500, brainer-svc 8010);
+# manifest.reach.port обязан === реальный порт (nginx upstream http://<service>:<port>).
+# Продукт за СВОИМ префиксом /brainer — корень / = лендинг ХАБА, не продукта.
+apiVersion: omnifield.dev/v1
+name: brainer
+type: fullstack
+title: Brainer
+description: Пульт агентов — карта и спавн Claude-сессий (ПРОДУКТ, втягивается в хаб)
+reach:
+  routes:
+    - path: /brainer
+      port: 3500
+      service: brainer-web
+    - path: /api/brainer
+      port: 8010
+      service: brainer-svc
+integration:
+  scopes: [workspace, control-plane]
+  spawnEligible: true
