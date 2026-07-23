@@ -49,20 +49,21 @@ test("каждый frame.src существует внутри contentRoot", () 
   assert.deepEqual(errs, [], errs.join("\n"));
 });
 
-test("рамка покрывает все три роли + shared-policy + config-сид", () => {
+test("рамка покрывает все три роли + shared-policy + settings-регистрацию + config-сид", () => {
   const dests = readJson("package.json").omnifield.frame.map((f) => f.dest);
   for (const d of [
     ".claude/agents/architect.md",
     ".claude/agents/owner.md",
     ".claude/agents/layer.md",
     ".claude/agents/shared-policy.md",
+    ".claude/settings.json",
     ".omnifield/harness.yaml",
   ]) {
     assert.ok(dests.includes(d), `frame не кладёт ${d}`);
   }
 });
 
-test("роли — mode:exact, config-сид — mode:seed", () => {
+test("роли — mode:exact, settings-регистрация — mode:merge, config-сид — mode:seed", () => {
   const byDest = Object.fromEntries(
     readJson("package.json").omnifield.frame.map((f) => [f.dest, f.mode]),
   );
@@ -70,7 +71,17 @@ test("роли — mode:exact, config-сид — mode:seed", () => {
   assert.equal(byDest[".claude/agents/owner.md"], "exact");
   assert.equal(byDest[".claude/agents/layer.md"], "exact");
   assert.equal(byDest[".claude/agents/shared-policy.md"], "exact");
+  assert.equal(byDest[".claude/settings.json"], "merge");
   assert.equal(byDest[".omnifield/harness.yaml"], "seed");
+});
+
+test("settings.json-регистрация — mode:merge (deep-merge, НЕ block/exact) в обоих зеркалах", () => {
+  for (const file of ["package.json", "plugin.json"]) {
+    const entry = readJson(file).omnifield.frame.find((f) => f.dest === ".claude/settings.json");
+    assert.ok(entry, `${file}: frame не несёт .claude/settings.json`);
+    assert.equal(entry.mode, "merge", `${file}: settings.json должен быть mode:merge`);
+    assert.equal(entry.src, "settings.hooks.json", `${file}: settings.json src`);
+  }
 });
 
 test("validatePackage() — сквозная проверка без ошибок", () => {

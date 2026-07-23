@@ -1,5 +1,5 @@
 {
-  "$comment": "Managed-блок регистрации harness-хуков для .claude/settings.json. Source of truth того, что плагин должен ЗАРЕГИСТРИРОВАТЬ у потребителя (git-gate на PreToolUse; main-session-marker + scope-identity на SessionStart). Материализация в settings.json — splice-merge (НЕ перезапись пользовательского settings, идемпотентно): см. settings-block.mjs::mergeSettingsBlock. ВНИМАНИЕ: движковый mode:block сейчас = line-splice #-коммент-блока (gitignore-only, applyBlock→spliceGitignore) и в JSON даёт невалид — wiring через движок ждёт JSON-aware block/merge-хендлера (эскалация к architect, зона devopser).",
+  "$comment": "Managed-блок регистрации harness-хуков для .claude/settings.json. Source of truth того, что плагин ЗАРЕГИСТРИРУЕТ у потребителя (git-gate на PreToolUse; main-session-marker + scope-identity на SessionStart). Материализация — движковый mode:merge (JSON-aware deep-merge, @omnifield/skeleton@^0.8.0): НЕ перезапись пользовательского settings, наши hook-группы добавляются идемпотентно. Заведено в frame записью settings.hooks.json → .claude/settings.json (tasker:BRAIN-14, DEVOPSER-170 закрыт). Reference-спека merge-семантики — settings-block.mjs::mergeSettingsBlock (движок зеркалит поведение).",
   "hooks": {
     "PreToolUse": [
       {

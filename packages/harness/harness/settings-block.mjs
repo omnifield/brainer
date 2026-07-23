@@ -5,8 +5,9 @@
 // Идемпотентность — по СОДЕРЖИМОМУ (deep-equal группы), без не-схемных marker-ключей:
 // повторный прогон находит идентичную группу и не дублирует.
 //
-// Это harness-side reference-материализация managed-блока (source of truth — settings.hooks.json).
-// Движковый mode:block пока line-splice для gitignore; JSON-aware wiring — за devopser (эскалация).
+// Это harness-side reference-спека merge-семантики (source of truth — settings.hooks.json).
+// В frame заведено через движковый mode:merge (JSON-aware deep-merge, @omnifield/skeleton@^0.8.0,
+// tasker:BRAIN-14); движок зеркалит поведение mergeSettingsBlock. mode:block — только gitignore.
 
 function deepEqual(a, b) {
   if (a === b) return true;

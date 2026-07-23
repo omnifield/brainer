@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 export const PKG_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const VALID_STACKS = new Set(["node", "go", "frontend", "python", "any"]);
-const VALID_MODES = new Set(["exact", "seed", "block", "pins"]);
+const VALID_MODES = new Set(["exact", "seed", "block", "merge", "pins"]);
 
 /** Рекурсивно выкидывает $-префиксные ключи ($comment) — не контрактные поля. */
 export function stripMeta(v) {
