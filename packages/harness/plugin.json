@@ -1,0 +1,16 @@
+{
+  "$comment": "ВЕНДОРЕННЫЙ манифест плагина (kb:DEVOPSER-6 §3): вторая, language-agnostic сторона доставки для go/не-npm потребителей (напр. chater), куда npm-only не долетает. omnifield-блок — ЗЕРКАЛО package.json.omnifield (движок читает вендор-метаданные отсюда). Держать байт-в-байт консистентным с package.json (contract.test.mjs это проверяет).",
+  "omnifield": {
+    "kind": "plugin",
+    "target": "agent-harness",
+    "stack": "any",
+    "contentRoot": "harness",
+    "frame": [
+      { "src": "roles/architect.md", "dest": ".claude/agents/architect.md", "mode": "exact" },
+      { "src": "roles/owner.md", "dest": ".claude/agents/owner.md", "mode": "exact" },
+      { "src": "roles/layer.md", "dest": ".claude/agents/layer.md", "mode": "exact" },
+      { "src": "shared-policy.md", "dest": ".claude/agents/shared-policy.md", "mode": "exact" },
+      { "src": "harness.config.example.yaml", "dest": ".omnifield/harness.yaml", "mode": "seed" }
+    ]
+  }
+}
