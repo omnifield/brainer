@@ -1,0 +1,19 @@
+{
+  "$comment": "Managed-блок регистрации harness-хуков для .claude/settings.json. Source of truth того, что плагин должен ЗАРЕГИСТРИРОВАТЬ у потребителя (git-gate на PreToolUse; main-session-marker + scope-identity на SessionStart). Материализация в settings.json — splice-merge (НЕ перезапись пользовательского settings, идемпотентно): см. settings-block.mjs::mergeSettingsBlock. ВНИМАНИЕ: движковый mode:block сейчас = line-splice #-коммент-блока (gitignore-only, applyBlock→spliceGitignore) и в JSON даёт невалид — wiring через движок ждёт JSON-aware block/merge-хендлера (эскалация к architect, зона devopser).",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [{ "type": "command", "command": "node .claude/hooks/git-gate.mjs" }]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "node .claude/hooks/main-session-marker.mjs" },
+          { "type": "command", "command": "node .claude/hooks/scope-identity.mjs" }
+        ]
+      }
+    ]
+  }
+}

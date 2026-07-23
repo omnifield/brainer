@@ -10,6 +10,27 @@
       { "src": "roles/owner.md", "dest": ".claude/agents/owner.md", "mode": "exact" },
       { "src": "roles/layer.md", "dest": ".claude/agents/layer.md", "mode": "exact" },
       { "src": "shared-policy.md", "dest": ".claude/agents/shared-policy.md", "mode": "exact" },
+      {
+        "src": "hooks/harness-config.mjs",
+        "dest": ".claude/hooks/harness-config.mjs",
+        "mode": "exact"
+      },
+      {
+        "src": "hooks/scope-resolve.mjs",
+        "dest": ".claude/hooks/scope-resolve.mjs",
+        "mode": "exact"
+      },
+      {
+        "src": "hooks/scope-identity.mjs",
+        "dest": ".claude/hooks/scope-identity.mjs",
+        "mode": "exact"
+      },
+      { "src": "hooks/git-gate.mjs", "dest": ".claude/hooks/git-gate.mjs", "mode": "exact" },
+      {
+        "src": "hooks/main-session-marker.mjs",
+        "dest": ".claude/hooks/main-session-marker.mjs",
+        "mode": "exact"
+      },
       { "src": "harness.config.example.yaml", "dest": ".omnifield/harness.yaml", "mode": "seed" }
     ]
   }

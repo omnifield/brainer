@@ -6,9 +6,7 @@ import { validatePackage } from "./contract.lib.mjs";
 
 const { errors, npmOmni } = validatePackage();
 if (errors.length) {
-  process.stderr.write(
-    "✗ plugin-контракт НАРУШЕН:\n" + errors.map((e) => `  - ${e}`).join("\n") + "\n",
-  );
+  process.stderr.write(`✗ plugin-контракт НАРУШЕН:\n${errors.map((e) => `  - ${e}`).join("\n")}\n`);
   process.exit(1);
 }
 process.stdout.write(

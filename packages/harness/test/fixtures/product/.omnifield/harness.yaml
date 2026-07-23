@@ -1,0 +1,19 @@
+# Фикстура: чужой продукт (НЕ brainer) — доказывает, что зоны/пины/архитекторы = ДАННЫЕ.
+apiVersion: omnifield.dev/v1
+kind: harness
+architects: 2
+models:
+  architect: model-arch
+  owner: model-own
+  layer: model-lay
+zones:
+  alpha:
+    path: packages/alpha
+    description: alpha zone
+  beta:
+    path: services/beta
+    description: beta zone
+git:
+  architect: full
+  owner: commit-only
+  layer: none

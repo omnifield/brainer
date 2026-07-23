@@ -13,7 +13,7 @@
   ],
   "scripts": {
     "build": "node test/validate.mjs",
-    "test": "node --test test/contract.test.mjs",
+    "test": "node --test test/*.test.mjs",
     "lint": "biome check ."
   },
   "omnifield": {
@@ -41,6 +41,31 @@
       {
         "src": "shared-policy.md",
         "dest": ".claude/agents/shared-policy.md",
+        "mode": "exact"
+      },
+      {
+        "src": "hooks/harness-config.mjs",
+        "dest": ".claude/hooks/harness-config.mjs",
+        "mode": "exact"
+      },
+      {
+        "src": "hooks/scope-resolve.mjs",
+        "dest": ".claude/hooks/scope-resolve.mjs",
+        "mode": "exact"
+      },
+      {
+        "src": "hooks/scope-identity.mjs",
+        "dest": ".claude/hooks/scope-identity.mjs",
+        "mode": "exact"
+      },
+      {
+        "src": "hooks/git-gate.mjs",
+        "dest": ".claude/hooks/git-gate.mjs",
+        "mode": "exact"
+      },
+      {
+        "src": "hooks/main-session-marker.mjs",
+        "dest": ".claude/hooks/main-session-marker.mjs",
         "mode": "exact"
       },
       {

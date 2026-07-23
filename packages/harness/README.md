@@ -15,10 +15,28 @@
 | `roles/owner.md` | `.claude/agents/owner.md` | exact | роль owner-`<zone>` |
 | `roles/layer.md` | `.claude/agents/layer.md` | exact | роль layer |
 | `shared-policy.md` | `.claude/agents/shared-policy.md` | exact | инварианты рамки |
+| `hooks/harness-config.mjs` | `.claude/hooks/harness-config.mjs` | exact | загрузчик роль-модели (config = данные) |
+| `hooks/scope-resolve.mjs` | `.claude/hooks/scope-resolve.mjs` | exact | резолв scope→зона из конфига |
+| `hooks/scope-identity.mjs` | `.claude/hooks/scope-identity.mjs` | exact | SessionStart identity-баннер по роли |
+| `hooks/git-gate.mjs` | `.claude/hooks/git-gate.mjs` | exact | PreToolUse git-gate (доступ по роли из конфига) |
+| `hooks/main-session-marker.mjs` | `.claude/hooks/main-session-marker.mjs` | exact | marker main-сессии |
 | `harness.config.example.yaml` | `.omnifield/harness.yaml` | seed | пресет-сид роль-модели |
 
 **Рамка (exact)** — инварианты, выключить нельзя. **Сид (seed)** — продукт заполняет под
 себя (зоны, пины моделей, число архитекторов); дальше файлом владеет продукт (не drift).
+
+### Config-driven хуки (роль-модель = ДАННЫЕ)
+
+Хуки читают роль-модель из `.omnifield/harness.yaml` (`harness-config.mjs`, zero-dep
+YAML-парс), НЕ хардкодят зоны/роли: `scope-resolve` резолвит зоны из конфига,
+`scope-identity` строит баннер (роль / пин модели / число архитекторов), `git-gate` —
+доступ по роли (architect=full / owner=commit-only / layer=none). Хуки исполняют `main()`
+только как скрипт (guard `import.meta.url===argv[1]`) — импортируемы без сайд-эффектов.
+
+**settings-регистрация** (`settings.hooks.json` + идемпотентный `settings-block.mjs`) —
+готова, но НЕ заведена в `frame`: движковый `mode:block` сейчас line-splice `#`-коммент-блока
+(gitignore-only) и в JSON даёт невалид. Wiring ждёт JSON-aware block/merge-хендлера в движке
+(эскалация к architect, зона devopser) — см. `OWNERSHIP.md`.
 
 ## Метаданные плагина
 
