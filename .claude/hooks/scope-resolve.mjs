@@ -10,6 +10,7 @@ export const ZONES = {
   orchestrator: { relativePath: 'packages/orchestrator', name: 'orchestrator — session lifecycle + provider registry + telemetry aggregation' },
   backend: { relativePath: 'packages/backend', name: 'backend — product API/BFF over orchestrator' },
   frontend: { relativePath: 'packages/frontend', name: 'frontend — control-panel dashboard (the interface)' },
+  harness: { relativePath: 'packages/harness', name: 'harness — agent-harness plugin: роли/хуки/шаблоны (@brainer/agent-harness-plugin), доставка через skeleton plugin-target agent-harness' },
   content: { relativePath: 'content', name: 'content — doc etalons (dogfood)' },
 };
 

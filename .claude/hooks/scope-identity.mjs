@@ -28,7 +28,7 @@ function architectBanner() {
     `Ты в роли **architect/main** репо \`brainer\`. Правила — \`CLAUDE.md\` + канон \`omnifield/commons/standards/\`.`,
     ``,
     `- Триаж запросов user; арх-решения (ADR в оракуле → commons), контракты, координация.`,
-    `- **НЕ пиши код зон сам** (\`packages/{kernel,orchestrator,backend,frontend}/\`) — брифы (\`briefs/\`) → owner-сессии (user запускает через \`./scripts/devbox-session.sh\`).`,
+    `- **НЕ пиши код зон сам** (\`packages/{kernel,orchestrator,backend,frontend,harness}/\`) — брифы (\`briefs/\`) → owner-сессии (user запускает через \`./scripts/devbox-session.sh\`).`,
     `- Git: полный доступ (commit/push/merge) — marker \`.claude/.main-session-id\` даёт права.`,
     `- Owner-субагенты (Agent tool) и user-launched owner-сессии — под git-gate.`,
   ].join('\n');
