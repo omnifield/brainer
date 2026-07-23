@@ -1,0 +1,49 @@
+# harness.yaml — per-product пресет-СИД ролевой модели (agent-harness plugin).
+#
+# Доставляется плагином @brainer/agent-harness-plugin как frame-entry mode:seed →
+# .omnifield/harness.yaml. seed = создаётся, если файла нет; дальше файлом ВЛАДЕЕТ продукт
+# (не drift-managed) — заполняет под себя. Это ДАННЫЕ роль-модели (kb:BRAIN-3):
+# рамка (инварианты) впаяна в roles/*.md + shared-policy.md, а здесь — overridable докрутка.
+#
+# Значения ниже — ПРИМЕР (раскладка brainer). Продукт заменяет своими.
+apiVersion: omnifield.dev/v1
+kind: harness
+
+# Число архитекторов (main-сессий). Дефолт канона — 3 (продукт/фронт/бэк) + овнеры-исполнители.
+# Мелкий продукт может держать 1.
+architects: 1
+
+# Пины моделей по роли (провайдер claude-code; agent-as-provider — расширяемо провайдером).
+models:
+  architect: claude-opus-4-8
+  owner: claude-opus-4-8
+  layer: claude-haiku-4-5-20251001
+
+# Зоны продукта: scope (leaf-имя) → путь + краткое назначение. scope=main → architect.
+# owner-<zone> владеет папкой целиком, commit-only под git-gate.
+zones:
+  kernel:
+    path: packages/kernel
+    description: agent-as-provider seam (capability/provider/router/entitlement)
+  orchestrator:
+    path: packages/orchestrator
+    description: session lifecycle + provider registry + telemetry aggregation
+  backend:
+    path: packages/backend
+    description: product API/BFF over orchestrator
+  frontend:
+    path: packages/frontend
+    description: control-panel dashboard
+  harness:
+    path: packages/harness
+    description: agent-harness plugin (роли/хуки/шаблоны)
+  content:
+    path: content
+    description: doc etalons (dogfood)
+
+# Git-доступ по роли — РАМКА (инвариант shared-policy), приведён для наглядности,
+# выключить нельзя: architect=full; owner=commit-only (gate); layer=none.
+git:
+  architect: full
+  owner: commit-only
+  layer: none

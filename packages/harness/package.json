@@ -1,0 +1,78 @@
+{
+  "name": "@brainer/agent-harness-plugin",
+  "version": "0.1.0",
+  "description": "Agent-harness capability plugin for brainer — role frame + preset seed, delivered blind by the skeleton engine via plugin-target agent-harness (kb:DEVOPSER-6).",
+  "type": "module",
+  "license": "UNLICENSED",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "harness",
+    "plugin.json"
+  ],
+  "scripts": {
+    "build": "node test/validate.mjs",
+    "test": "node --test test/*.test.mjs",
+    "lint": "biome check ."
+  },
+  "omnifield": {
+    "$comment": "Метаданные plugin-контракта для движка skeleton (kb:DEVOPSER-6). npm-сторона доставки; вендор-зеркало — plugin.json.omnifield (обязано быть байт-в-байт консистентно). ПРАВИЛО: у плагина mechanism НЕ объявляется — материализацию несёт per-entry frame[].mode.",
+    "kind": "plugin",
+    "target": "agent-harness",
+    "stack": "any",
+    "contentRoot": "harness",
+    "frame": [
+      {
+        "src": "roles/architect.md",
+        "dest": ".claude/agents/architect.md",
+        "mode": "exact"
+      },
+      {
+        "src": "roles/owner.md",
+        "dest": ".claude/agents/owner.md",
+        "mode": "exact"
+      },
+      {
+        "src": "roles/layer.md",
+        "dest": ".claude/agents/layer.md",
+        "mode": "exact"
+      },
+      {
+        "src": "shared-policy.md",
+        "dest": ".claude/agents/shared-policy.md",
+        "mode": "exact"
+      },
+      {
+        "src": "hooks/harness-config.mjs",
+        "dest": ".claude/hooks/harness-config.mjs",
+        "mode": "exact"
+      },
+      {
+        "src": "hooks/scope-resolve.mjs",
+        "dest": ".claude/hooks/scope-resolve.mjs",
+        "mode": "exact"
+      },
+      {
+        "src": "hooks/scope-identity.mjs",
+        "dest": ".claude/hooks/scope-identity.mjs",
+        "mode": "exact"
+      },
+      {
+        "src": "hooks/git-gate.mjs",
+        "dest": ".claude/hooks/git-gate.mjs",
+        "mode": "exact"
+      },
+      {
+        "src": "hooks/main-session-marker.mjs",
+        "dest": ".claude/hooks/main-session-marker.mjs",
+        "mode": "exact"
+      },
+      {
+        "src": "harness.config.example.yaml",
+        "dest": ".omnifield/harness.yaml",
+        "mode": "seed"
+      }
+    ]
+  }
+}
