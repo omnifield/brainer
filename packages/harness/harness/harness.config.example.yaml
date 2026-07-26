@@ -17,8 +17,10 @@ product: my-product
 architects: 1
 
 # Пины моделей по роли (провайдер claude-code; agent-as-provider — расширяемо провайдером).
+# Дефолт-пресет: architect — сильнейшая (opus-5), owner — opus-4.8, layer — haiku. Эти же
+# значения применяются, если секцию убрать (дефолт в рамке). Переопредели под свой продукт.
 models:
-  architect: claude-opus-4-8
+  architect: claude-opus-5
   owner: claude-opus-4-8
   layer: claude-haiku-4-5-20251001
 

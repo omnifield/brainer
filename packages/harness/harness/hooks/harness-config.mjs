@@ -15,6 +15,15 @@ import { join } from "node:path";
 // Значения оверрайдятся конфигом, но роль-семантика (что именно режется) — в git-gate.
 const GIT_INVARIANT = { architect: "full", owner: "commit-only", layer: "none" };
 
+// Дефолт-пины моделей по роли (ПРЕСЕТ, MECH-7): применяются, если продукт не переопределил
+// `models:` в harness.yaml. architect — сильнейшая (opus-5), owner — opus-4.8, layer — haiku.
+// Продукт крутит конфигом; это лишь разумный дефолт, не инвариант.
+const MODEL_DEFAULTS = {
+  architect: "claude-opus-5",
+  owner: "claude-opus-4-8",
+  layer: "claude-haiku-4-5-20251001",
+};
+
 // Зарезервированные слова роль-модели: 'main' = architect, 'layer' = layer-роль. Зона с таким
 // именем даёт двоемыслие (баннер owner commit-only, а git-gate по roleOf режет как layer/none) —
 // поэтому такие зоны ОТВЕРГАЕМ при чтении конфига (scope тогда не резолвится → честная аномалия).
@@ -23,7 +32,7 @@ const RESERVED_ZONE_NAMES = new Set(["main", "layer"]);
 export const DEFAULT_CONFIG = {
   product: null,
   architects: 1,
-  models: {},
+  models: { ...MODEL_DEFAULTS },
   zones: {},
   git: { ...GIT_INVARIANT },
   // Слот grabli (BRAIN2-7): куда агенты пишут затыки/грабли. Дефолта нет — если продукт
@@ -119,7 +128,7 @@ export function normalizeConfig(parsed) {
   return {
     product: typeof c.product === "string" ? c.product : DEFAULT_CONFIG.product,
     architects: typeof c.architects === "number" ? c.architects : DEFAULT_CONFIG.architects,
-    models: c.models && typeof c.models === "object" ? c.models : {},
+    models: { ...MODEL_DEFAULTS, ...(c.models && typeof c.models === "object" ? c.models : {}) },
     zones: normalizeZones(c.zones),
     git: { ...GIT_INVARIANT, ...(c.git && typeof c.git === "object" ? c.git : {}) },
     grabli: c.grabli && typeof c.grabli === "object" ? c.grabli : DEFAULT_CONFIG.grabli,

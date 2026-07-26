@@ -149,10 +149,19 @@ test("loadConfig без файла → DEFAULT_CONFIG (degraded, зоны пус
   assert.equal(d.architects, DEFAULT_CONFIG.architects);
 });
 
-test("normalizeConfig достраивает недостающие секции", () => {
+test("normalizeConfig достраивает недостающие секции (+ дефолт-пины моделей)", () => {
   const n = normalizeConfig({ zones: { x: { path: "p" } } });
-  assert.deepEqual(n.models, {});
+  assert.equal(n.models.architect, "claude-opus-5"); // дефолт-пин (MECH-7 preset)
+  assert.equal(n.models.owner, "claude-opus-4-8");
+  assert.match(n.models.layer, /haiku/);
   assert.equal(n.git.architect, "full");
+});
+
+test("models: дефолт-пины применяются, продукт переопределяет частично", () => {
+  const n = normalizeConfig({ models: { owner: "custom-own" } });
+  assert.equal(n.models.architect, "claude-opus-5"); // не задан → дефолт
+  assert.equal(n.models.owner, "custom-own"); // переопределён продуктом
+  assert.match(n.models.layer, /haiku/); // не задан → дефолт
 });
 
 // --- Резолв scope (config-driven) -------------------------------------------

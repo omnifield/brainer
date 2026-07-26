@@ -7,7 +7,7 @@ product: brainer
 architects: 1
 
 models:
-  architect: claude-opus-4-8
+  architect: claude-opus-5
   owner: claude-opus-4-8
   layer: claude-haiku-4-5-20251001
 
