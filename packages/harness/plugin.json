@@ -36,6 +36,7 @@
         "dest": ".claude/hooks/harness-doctor.mjs",
         "mode": "exact"
       },
+      { "src": "hooks/governance.mjs", "dest": ".claude/hooks/governance.mjs", "mode": "exact" },
       { "src": "gitignore.claude", "dest": ".claude/.gitignore", "mode": "exact" },
       { "src": "settings.hooks.json", "dest": ".claude/settings.json", "mode": "merge" },
       { "src": "harness.config.example.yaml", "dest": ".omnifield/harness.yaml", "mode": "seed" }

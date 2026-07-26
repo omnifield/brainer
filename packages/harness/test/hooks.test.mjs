@@ -258,10 +258,11 @@ test("identity: неизвестный scope → UNRESOLVED-аномалия", (
 
 // --- settings-block: идемпотентный splice ------------------------------------
 
-test("settings-block: регистрирует git-gate (PreToolUse) + SessionStart-хуки", () => {
+test("settings-block: регистрирует git-gate + governance (PreToolUse) + SessionStart-хуки", () => {
   const merged = mergeSettingsBlock({}, block);
   const cmds = JSON.stringify(merged);
   assert.match(cmds, /git-gate\.mjs/);
+  assert.match(cmds, /governance\.mjs/); // BRAIN2-2: машинная граница правок
   assert.match(cmds, /main-session-marker\.mjs/);
   assert.match(cmds, /scope-identity\.mjs/);
 });
@@ -298,6 +299,7 @@ test("все config-driven хуки объявлены в frame (mode:exact) и 
     "scope-resolve",
     "scope-identity",
     "git-gate",
+    "governance",
     "main-session-marker",
   ]) {
     const entry = hookDests.find((f) => f.dest === `.claude/hooks/${name}.mjs`);

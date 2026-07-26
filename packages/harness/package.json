@@ -74,6 +74,11 @@
         "mode": "exact"
       },
       {
+        "src": "hooks/governance.mjs",
+        "dest": ".claude/hooks/governance.mjs",
+        "mode": "exact"
+      },
+      {
         "src": "gitignore.claude",
         "dest": ".claude/.gitignore",
         "mode": "exact"
