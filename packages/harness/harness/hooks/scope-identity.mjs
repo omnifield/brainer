@@ -48,16 +48,21 @@ function architectBanner(config) {
   ].join("\n");
 }
 
-function ownerBanner(config, { scope, relativePath, name }) {
+function ownerBanner(config, { scope, paths, name }) {
+  const list = paths.length
+    ? paths.map((p) => `\`${p}/\``).join(", ")
+    : "`(зона без путей — аномалия конфига)`";
+  const firstPath = paths[0] ?? "<зона>";
   return [
     `# Session identity — OMNIFIELD_SCOPE=${scope} (owner-${scope})${modelLine(config, "owner")}`,
     ``,
-    `Ты в роли **owner-${scope}** ${productLabel(config)}, владелец зоны \`${relativePath}/\` (${name}).`,
+    `Ты в роли **owner-${scope}** ${productLabel(config)}, владелец зоны: ${list} (${name}).`,
     `**Ты НЕ architect** — правила роли architect не твои.`,
     ``,
     `## Зона (boundary)`,
-    `- Edits — ТОЛЬКО внутри \`${relativePath}/\`. Чужая зона → STOP, верни state architect.`,
-    `- Перед первым Edit прочитай свой раздел в knowledger + \`${relativePath}/README.md\` (если есть).`,
+    `- Edits — ТОЛЬКО внутри своих папок: ${list}. Любой файл вне них → STOP, верни state architect.`,
+    `- Машинная граница (governance-хук) блокирует Edit/Write вне этих путей — не обходи, эскалируй ВВЕРХ.`,
+    `- Перед первым Edit прочитай свой раздел в knowledger + \`${firstPath}/README.md\` (если есть).`,
     ``,
     `## Правила (канон)`,
     `- Первым читаешь \`.claude/agents/shared-policy.md\`.`,

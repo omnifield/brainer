@@ -18,6 +18,8 @@ import {
   parseYaml,
   resolveScope,
   roleOf,
+  validateConfig,
+  zonePaths,
 } from "../harness/hooks/harness-config.mjs";
 import block from "../harness/settings.hooks.json" with { type: "json" };
 import { mergeSettingsBlock } from "../harness/settings-block.mjs";
@@ -51,6 +53,13 @@ test("parseYaml НЕ трогает `#` без пробела перед ним 
   assert.equal(y.frag, "a/b#c");
 });
 
+test("parseYaml разбирает inline flow-массив paths[] (+ хвостовой коммент)", () => {
+  const y = parseYaml("zones:\n  api:\n    paths: [packages/a, packages/b]  # ядро\n");
+  assert.deepEqual(y.zones.api.paths, ["packages/a", "packages/b"]);
+  const empty = parseYaml("zones:\n  x:\n    paths: []\n");
+  assert.deepEqual(empty.zones.x.paths, []);
+});
+
 test("normalizeConfig отвергает зоны с зарезервированными именами (main/layer)", () => {
   const n = normalizeConfig({
     zones: { layer: { path: "p1" }, main: { path: "p2" }, api: { path: "p3" } },
@@ -63,7 +72,50 @@ test("loadConfig читает зоны/пины/архитекторов из Д
   assert.equal(cfg.models.architect, "model-arch");
   assert.equal(cfg.models.owner, "model-own");
   assert.deepEqual(Object.keys(cfg.zones).sort(), ["alpha", "beta"]);
-  assert.equal(cfg.zones.alpha.path, "packages/alpha");
+  assert.deepEqual(zonePaths(cfg.zones.alpha), ["packages/alpha", "packages/alpha-shared"]);
+});
+
+// --- zonePaths: paths[] канон ∪ legacy path ∪ голая строка --------------------
+
+test("zonePaths: paths[] массив, legacy path одиночный, голая строка — всё в массив", () => {
+  assert.deepEqual(zonePaths({ paths: ["a", "b"] }), ["a", "b"]);
+  assert.deepEqual(zonePaths({ path: "a" }), ["a"]); // back-compat одиночный
+  assert.deepEqual(zonePaths("a"), ["a"]); // голая строка
+  assert.deepEqual(zonePaths(cfg.zones.beta), ["services/beta"]); // фикстура: legacy beta
+  assert.deepEqual(zonePaths({}), []); // без путей
+  assert.deepEqual(zonePaths({ paths: ["a", "", "  "] }), ["a"]); // пустые отброшены
+});
+
+// --- validateConfig: relative / непустой / disjoint --------------------------
+
+test("validateConfig: валидная роль-модель → нет ошибок", () => {
+  assert.deepEqual(validateConfig(cfg), []);
+});
+
+test("validateConfig: пересечение путей разных зон (disjoint) → ошибка", () => {
+  const errs = validateConfig(
+    normalizeConfig({ zones: { a: { paths: ["packages/x"] }, b: { paths: ["packages/x/sub"] } } }),
+  );
+  assert.equal(errs.length, 1);
+  assert.match(errs[0], /пересека/);
+});
+
+test("validateConfig: абсолютный путь / '..'-escape / пустой paths[] → ошибки", () => {
+  const errs = validateConfig(
+    normalizeConfig({
+      zones: { a: { paths: ["/etc"] }, b: { paths: ["../out"] }, c: { paths: [] } },
+    }),
+  );
+  assert.ok(errs.some((e) => /абсолют/.test(e)));
+  assert.ok(errs.some((e) => /\.\./.test(e)));
+  assert.ok(errs.some((e) => /нет путей/.test(e)));
+});
+
+test("validateConfig: одна зона с несколькими НЕпересекающимися папками — ок", () => {
+  const errs = validateConfig(
+    normalizeConfig({ zones: { a: { paths: ["packages/a", "services/a"] } } }),
+  );
+  assert.deepEqual(errs, []);
 });
 
 test("loadConfig без файла → DEFAULT_CONFIG (degraded, зоны пусты, git-инвариант)", () => {
@@ -85,11 +137,11 @@ test("resolveScope: main → architect", () => {
   assert.deepEqual(resolveScope("main", cfg), { kind: "main", scope: "main", role: "architect" });
 });
 
-test("resolveScope: зона из конфига → owner + путь из ДАННЫХ", () => {
+test("resolveScope: зона из конфига → owner + paths[] из ДАННЫХ", () => {
   const r = resolveScope("alpha", cfg);
   assert.equal(r.kind, "zone");
   assert.equal(r.role, "owner");
-  assert.equal(r.relativePath, "packages/alpha");
+  assert.deepEqual(r.paths, ["packages/alpha", "packages/alpha-shared"]);
   assert.match(r.name, /alpha zone/);
 });
 
@@ -191,10 +243,11 @@ test("identity: architect-баннер несёт роль, пин модели,
   assert.doesNotMatch(out, /brainer/); // регресс: имя продукта не захардкожено
 });
 
-test("identity: owner-баннер несёт зону из конфига + пин", () => {
+test("identity: owner-баннер перечисляет ВСЕ папки paths[] + пин", () => {
   const out = JSON.parse(runIdentity("alpha")).hookSpecificOutput.additionalContext;
   assert.match(out, /owner-alpha/);
-  assert.match(out, /packages\/alpha/);
+  assert.match(out, /packages\/alpha\//); // первая папка
+  assert.match(out, /packages\/alpha-shared\//); // вторая папка из массива
   assert.match(out, /model-own/);
 });
 

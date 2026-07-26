@@ -16,6 +16,8 @@ import {
   rejectedZoneNames,
   resolveScope,
   roleOf,
+  validateConfig,
+  zonePaths,
 } from "./harness-config.mjs";
 
 const cwd = process.cwd();
@@ -68,12 +70,26 @@ if (!zones.length) {
 } else {
   p(`зоны (${zones.length}):`);
   for (const [name, z] of zones) {
-    const path = typeof z === "object" ? z.path : String(z);
-    const exists = path && existsSync(join(cwd, path));
-    p(
-      `  ${exists ? "✓" : "✗"} ${name} → ${path}${exists ? "" : "   ПАПКИ НЕТ (boundary на пустоту)"}`,
-    );
+    const paths = zonePaths(z);
+    if (!paths.length) {
+      p(bad(`${name} → нет путей (пустой paths[])`));
+      continue;
+    }
+    p(`  ${name}:`);
+    for (const path of paths) {
+      const exists = existsSync(join(cwd, path));
+      p(`    ${exists ? "✓" : "✗"} ${path}${exists ? "" : "   ПАПКИ НЕТ (boundary на пустоту)"}`);
+    }
   }
+}
+// Валидатор роль-модели (disjoint / relative / непустой) — kb:BRAIN2-1.
+const cfgErrors = validateConfig(config);
+if (cfgErrors.length) {
+  p("");
+  p(bad(`валидатор роль-модели: ${cfgErrors.length} ошибок`));
+  for (const e of cfgErrors) p(`    - ${e}`);
+} else if (zones.length) {
+  p(ok("валидатор роль-модели: пути relative, непустые, не пересекаются"));
 }
 p("");
 
@@ -89,7 +105,7 @@ if (!scope) {
   } else if (resolved?.kind === "zone") {
     p(
       ok(
-        `OMNIFIELD_SCOPE=${scope} → owner-${scope} (git: ${gitAccess(scope, config)}), зона ${resolved.relativePath}/`,
+        `OMNIFIELD_SCOPE=${scope} → owner-${scope} (git: ${gitAccess(scope, config)}), папки: ${resolved.paths.map((x) => `${x}/`).join(", ")}`,
       ),
     );
   } else {

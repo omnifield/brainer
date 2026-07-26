@@ -22,14 +22,16 @@ models:
   owner: claude-opus-4-8
   layer: claude-haiku-4-5-20251001
 
-# Зоны продукта: scope (leaf-имя) → path + краткое назначение. scope=main → architect.
-# owner-<zone> владеет папкой целиком (commit-only под git-gate). ЗАМЕНИ на реальные папки.
+# Зоны продукта: scope (leaf-имя) → paths[] + краткое назначение. scope=main → architect.
+# owner-<zone> владеет папками целиком (commit-only под git-gate). paths[] — МАССИВ: один
+# owner может держать несколько папок; пути РАЗНЫХ зон не пересекаются (одна папка — один
+# владелец, disjoint). ЗАМЕНИ на реальные папки. (legacy одиночный `path:` тоже читается.)
 zones:
   backend:
-    path: packages/backend
+    paths: [packages/backend]
     description: серверная зона продукта
   frontend:
-    path: packages/frontend
+    paths: [packages/frontend, packages/ui-kit]
     description: клиентская зона продукта
 
 # Git-доступ по роли — РАМКА (инвариант shared-policy), приведён для наглядности,

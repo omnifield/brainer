@@ -3,7 +3,8 @@
 // зоны/пути, пины моделей, число архитекторов, git-доступ по роли. Ноль хардкода зон.
 //
 // Зависимостей нет (хуки Claude Code стартуют голым node). YAML парсится подмножеством
-// (scalar + вложенные map'ы, без списков/flow — ровно то, что нужно harness.yaml).
+// (scalar + вложенные map'ы + inline flow-массив `[a, b]` для paths[] — ровно то, что нужно
+// harness.yaml; block-list `- x` не поддерживаем).
 // Файла нет → DEFAULT_CONFIG (degraded, но безопасный: только 'main'/architect известен,
 // зоны пусты → неизвестный scope = аномалия; git по роли — инвариант рамки).
 
@@ -40,9 +41,28 @@ function coerce(raw) {
 }
 
 /**
+ * Коэрция значения: inline flow-массив `[a, b, c]` → массив коэрцированных элементов
+ * (пустой `[]` → `[]`, хвостовая запятая отбрасывается); иначе — скаляр через coerce.
+ * Нужно для `zones.<z>.paths: [packages/a, packages/b]` (BRAIN2-1). Block-list (`- x`)
+ * не поддерживаем — в harness.yaml его нет.
+ */
+function coerceValue(raw) {
+  const v = raw.trim();
+  if (v.startsWith("[") && v.endsWith("]")) {
+    const inner = v.slice(1, -1).trim();
+    if (!inner) return [];
+    return inner
+      .split(",")
+      .map((x) => coerce(x))
+      .filter((x) => x !== "");
+  }
+  return coerce(v);
+}
+
+/**
  * Мини-парсер YAML-подмножества: отступ = 2 пробела/уровень; `key:` → вложенный map;
- * `key: value` → скаляр. Комментарии (`# …`), пустые строки и `---` игнорятся.
- * Списки и flow-синтаксис НЕ поддерживаются (в harness.yaml их нет).
+ * `key: value` → скаляр или inline flow-массив `[a, b]` (см. coerceValue). Комментарии
+ * (`# …`), пустые строки и `---` игнорятся. Block-list (`- x`) НЕ поддерживается.
  */
 export function parseYaml(text) {
   const root = {};
@@ -69,7 +89,7 @@ export function parseYaml(text) {
       parent[key] = child;
       stack.push({ indent, obj: child });
     } else {
-      parent[key] = coerce(val);
+      parent[key] = coerceValue(val);
     }
   }
   return root;
@@ -122,18 +142,85 @@ export function gitAccess(scope, config) {
   return config?.git?.[role] ?? GIT_INVARIANT[role] ?? "none";
 }
 
+/**
+ * Пути зоны как МАССИВ (BRAIN2-1: один owner владеет несколькими папками). Толерантный
+ * ридер: `paths: [a, b]` (канон) ∪ legacy одиночный `path:` ∪ голая строка `zone: path`
+ * → всегда массив относительных путей. Пустые/не-строки отбрасываются.
+ */
+export function zonePaths(zone) {
+  if (!zone) return [];
+  if (typeof zone === "string") return zone ? [zone] : [];
+  const raw = Array.isArray(zone.paths)
+    ? zone.paths
+    : typeof zone.path === "string"
+      ? [zone.path]
+      : [];
+  return raw.filter((p) => typeof p === "string" && p.trim() !== "").map((p) => p.trim());
+}
+
+/** true, если путь `a` равен `b` или вложен в него (по сегментам): a === b || b + '/' — префикс a. */
+function nestedOrEqual(a, b) {
+  return a === b || a.startsWith(`${b}/`);
+}
+
+/** Нормализация относительного пути для сравнения: срезаем ведущий `./` и хвостовой `/`. */
+function normPath(p) {
+  return p.replace(/^\.\//, "").replace(/\/+$/, "");
+}
+
+/**
+ * Детерминированный валидатор роль-модели (BRAIN2-1, канон schema-validated из kb:BRAIN2-3):
+ * каждая зона — непустой набор ОТНОСИТЕЛЬНЫХ путей (не абсолют, без `..`-escape), а пути
+ * РАЗНЫХ зон не пересекаются (одна папка — один владелец; disjoint-инвариант). Возвращает
+ * массив строк-ошибок (пустой = валидно). Не бросает — вызыватели решают, что делать.
+ */
+export function validateConfig(config) {
+  const errors = [];
+  const owned = []; // { zone, path } — нормализованные, для disjoint-проверки
+  for (const [zone, def] of Object.entries(config?.zones ?? {})) {
+    const paths = zonePaths(def);
+    if (!paths.length) {
+      errors.push(`зона "${zone}": нет путей (ожидается непустой paths[])`);
+      continue;
+    }
+    for (const raw of paths) {
+      const p = normPath(raw);
+      if (raw.startsWith("/"))
+        errors.push(`зона "${zone}": путь "${raw}" абсолютный (нужен относительный)`);
+      else if (p === "" || p.split("/").includes(".."))
+        errors.push(`зона "${zone}": путь "${raw}" невалиден (пустой или содержит "..")`);
+      else owned.push({ zone, path: p });
+    }
+  }
+  // disjoint: любая пара путей из РАЗНЫХ зон не должна совпадать/вкладываться.
+  for (let i = 0; i < owned.length; i++) {
+    for (let j = i + 1; j < owned.length; j++) {
+      const a = owned[i];
+      const b = owned[j];
+      if (a.zone === b.zone) continue;
+      if (nestedOrEqual(a.path, b.path) || nestedOrEqual(b.path, a.path)) {
+        errors.push(
+          `пути зон "${a.zone}" и "${b.zone}" пересекаются: "${a.path}" ↔ "${b.path}" (одна папка — один владелец)`,
+        );
+      }
+    }
+  }
+  return errors;
+}
+
 /** Резолв scope → зона (из ДАННЫХ конфига). main → architect; unknown → null (аномалия). */
 export function resolveScope(scope, config) {
   if (scope === "main") return { kind: "main", scope: "main", role: "architect" };
   const zone = config?.zones?.[scope];
   if (!zone) return null;
-  const description = typeof zone === "object" ? zone.description : undefined;
-  const relativePath = typeof zone === "object" ? zone.path : String(zone);
+  const description =
+    typeof zone === "object" && !Array.isArray(zone) ? zone.description : undefined;
+  const paths = zonePaths(zone);
   return {
     kind: "zone",
     scope,
     role: "owner",
-    relativePath,
+    paths,
     name: description ? `${scope} — ${description}` : scope,
   };
 }

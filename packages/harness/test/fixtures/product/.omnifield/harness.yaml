@@ -9,11 +9,11 @@ models:
   layer: model-lay
 zones:
   alpha:
-    path: packages/alpha
+    paths: [packages/alpha, packages/alpha-shared]
     description: alpha zone
   beta:
     path: services/beta
-    description: beta zone
+    description: beta zone (legacy одиночный path — back-compat)
 git:
   architect: full
   owner: commit-only
