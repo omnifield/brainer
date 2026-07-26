@@ -40,6 +40,24 @@ test("parseYaml разбирает вложенные map + скаляры + т�
   assert.equal(y.zones.alpha.path, "packages/alpha");
 });
 
+test("parseYaml отрезает хвостовой inline-комментарий на не-quoted скаляре", () => {
+  const y = parseYaml("product: acme  # имя\nzones:\n  api:\n    path: packages/api  # ядро\n");
+  assert.equal(y.product, "acme"); // не "acme  # имя"
+  assert.equal(y.zones.api.path, "packages/api"); // не "packages/api  # ядро"
+});
+
+test("parseYaml НЕ трогает `#` без пробела перед ним (часть значения)", () => {
+  const y = parseYaml("frag: a/b#c\n");
+  assert.equal(y.frag, "a/b#c");
+});
+
+test("normalizeConfig отвергает зоны с зарезервированными именами (main/layer)", () => {
+  const n = normalizeConfig({
+    zones: { layer: { path: "p1" }, main: { path: "p2" }, api: { path: "p3" } },
+  });
+  assert.deepEqual(Object.keys(n.zones), ["api"]); // layer/main выброшены
+});
+
 test("loadConfig читает зоны/пины/архитекторов из ДАННЫХ (не хардкод)", () => {
   assert.equal(cfg.architects, 2);
   assert.equal(cfg.models.architect, "model-arch");
@@ -169,6 +187,8 @@ test("identity: architect-баннер несёт роль, пин модели,
   assert.match(out, /architect/);
   assert.match(out, /model-arch/);
   assert.match(out, /архитекторов сконфигурено: 2/);
+  assert.match(out, /продукта `acme`/); // product из ДАННЫХ, НЕ хардкод "brainer"
+  assert.doesNotMatch(out, /brainer/); // регресс: имя продукта не захардкожено
 });
 
 test("identity: owner-баннер несёт зону из конфига + пин", () => {

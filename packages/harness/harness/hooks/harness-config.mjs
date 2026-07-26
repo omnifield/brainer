@@ -14,7 +14,13 @@ import { join } from "node:path";
 // Значения оверрайдятся конфигом, но роль-семантика (что именно режется) — в git-gate.
 const GIT_INVARIANT = { architect: "full", owner: "commit-only", layer: "none" };
 
+// Зарезервированные слова роль-модели: 'main' = architect, 'layer' = layer-роль. Зона с таким
+// именем даёт двоемыслие (баннер owner commit-only, а git-gate по roleOf режет как layer/none) —
+// поэтому такие зоны ОТВЕРГАЕМ при чтении конфига (scope тогда не резолвится → честная аномалия).
+const RESERVED_ZONE_NAMES = new Set(["main", "layer"]);
+
 export const DEFAULT_CONFIG = {
+  product: null,
   architects: 1,
   models: {},
   zones: {},
@@ -48,7 +54,14 @@ export function parseYaml(text) {
     if (ci === -1) continue; // не key:value (списков не ждём) — пропуск
     const indent = rawLine.length - rawLine.trimStart().length;
     const key = trimmed.slice(0, ci).trim();
-    const val = trimmed.slice(ci + 1).trim();
+    let val = trimmed.slice(ci + 1).trim();
+    // Хвостовой inline-комментарий (YAML: пробел + `#`) на НЕ-quoted скаляре — отрезаем,
+    // иначе `product: x  # note` уезжает в значение целиком. `a/b#c` (без пробела) — НЕ коммент.
+    if (val && !val.startsWith('"') && !val.startsWith("'")) {
+      const h = val.search(/\s#/);
+      if (h !== -1) val = val.slice(0, h).trim();
+      else if (val.startsWith("#")) val = "";
+    }
     while (stack.length > 1 && indent <= stack[stack.length - 1].indent) stack.pop();
     const parent = stack[stack.length - 1].obj;
     if (val === "") {
@@ -62,13 +75,26 @@ export function parseYaml(text) {
   return root;
 }
 
+/** Зоны из конфига без зарезервированных имён (main/layer). Пустой/не-объект → {}. */
+export function normalizeZones(rawZones) {
+  if (!rawZones || typeof rawZones !== "object") return {};
+  return Object.fromEntries(Object.entries(rawZones).filter(([k]) => !RESERVED_ZONE_NAMES.has(k)));
+}
+
+/** Имена зон, отвергнутые как зарезервированные (для doctor/диагностики). */
+export function rejectedZoneNames(rawZones) {
+  if (!rawZones || typeof rawZones !== "object") return [];
+  return Object.keys(rawZones).filter((k) => RESERVED_ZONE_NAMES.has(k));
+}
+
 /** Достраивает распарсенный конфиг дефолтами по отсутствующим секциям. */
 export function normalizeConfig(parsed) {
   const c = parsed && typeof parsed === "object" ? parsed : {};
   return {
+    product: typeof c.product === "string" ? c.product : DEFAULT_CONFIG.product,
     architects: typeof c.architects === "number" ? c.architects : DEFAULT_CONFIG.architects,
     models: c.models && typeof c.models === "object" ? c.models : {},
-    zones: c.zones && typeof c.zones === "object" ? c.zones : {},
+    zones: normalizeZones(c.zones),
     git: { ...GIT_INVARIANT, ...(c.git && typeof c.git === "object" ? c.git : {}) },
   };
 }

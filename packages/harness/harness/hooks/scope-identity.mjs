@@ -28,17 +28,23 @@ function modelLine(config, role) {
   return pin ? ` (модель-пин: \`${pin}\`)` : "";
 }
 
+function productLabel(config) {
+  return config.product
+    ? `продукта \`${config.product}\``
+    : "этого продукта (имя не задано в `.omnifield/harness.yaml` → впиши `product:`)";
+}
+
 function architectBanner(config) {
   return [
     `# Session identity — OMNIFIELD_SCOPE=main (architect)${modelLine(config, "architect")}`,
     ``,
-    `Ты в роли **architect/main** репо \`brainer\`. Правила — \`CLAUDE.md\` + \`.claude/agents/architect.md\`.`,
+    `Ты в роли **architect/main** ${productLabel(config)}. Правила роли — \`.claude/agents/architect.md\` + \`.claude/agents/shared-policy.md\`.`,
     `Роль-модель — данные \`.omnifield/harness.yaml\` (архитекторов сконфигурено: ${config.architects}).`,
     ``,
-    `- Триаж запросов user; арх-решения/контракты (в knowledger), координация овнеров брифами.`,
-    `- **НЕ пиши код зон сам** — брифы (\`briefs/\`) → owner-сессии (user запускает).`,
-    `- Git: полный доступ (commit/push/merge) — marker \`.claude/.main-session-id\` даёт права.`,
-    `- Owner-субагенты (Agent tool) и user-launched owner-сессии — под git-gate.`,
+    `- Триаж запросов user; арх-решения и контракты пишешь в **knowledger**; координируешь овнеров **задачами в tasker** (\`tasker:KEY\`).`,
+    `- **НЕ пиши код зон сам** — ставишь задачу овнеру в tasker → owner-сессию запускает user.`,
+    `- Вся координация — через tasker, знания/решения — через knowledger. Локальных \`briefs/\`-файлов НЕ заводим (истина снаружи репо).`,
+    `- Git: полный доступ (commit/push/merge) — marker \`.claude/.main-session-id\` даёт права. Owner-сессии — под git-gate.`,
   ].join("\n");
 }
 
@@ -46,12 +52,12 @@ function ownerBanner(config, { scope, relativePath, name }) {
   return [
     `# Session identity — OMNIFIELD_SCOPE=${scope} (owner-${scope})${modelLine(config, "owner")}`,
     ``,
-    `Ты в роли **owner-${scope}**, владелец зоны \`${relativePath}/\` (${name}).`,
-    `**Ты НЕ architect** — секции CLAUDE.md про architect игнорируй.`,
+    `Ты в роли **owner-${scope}** ${productLabel(config)}, владелец зоны \`${relativePath}/\` (${name}).`,
+    `**Ты НЕ architect** — правила роли architect не твои.`,
     ``,
     `## Зона (boundary)`,
     `- Edits — ТОЛЬКО внутри \`${relativePath}/\`. Чужая зона → STOP, верни state architect.`,
-    `- Перед первым Edit прочитай \`${relativePath}/README.md\` (+ OWNERSHIP.md если есть).`,
+    `- Перед первым Edit прочитай свой раздел в knowledger + \`${relativePath}/README.md\` (если есть).`,
     ``,
     `## Правила (канон)`,
     `- Первым читаешь \`.claude/agents/shared-policy.md\`.`,
@@ -61,7 +67,7 @@ function ownerBanner(config, { scope, relativePath, name }) {
     `- POLICY priority 0: никаких костылей, причина не следствие, DoD = код+тесты+трейсы+доки.`,
     ``,
     `## Скоуп задачи`,
-    `Ждёшь brief-файл (\`briefs/...\`) или прямую задачу. Непонятен scope — STOP, спроси. Не угадывай.`,
+    `Работаешь по задаче в **tasker** (\`tasker:KEY\`) или прямому ТЗ от user — НЕ по локальным файлам. Непонятен scope — STOP, спроси. Не угадывай.`,
   ].join("\n");
 }
 
@@ -71,7 +77,7 @@ function anomalyBanner(config, scope) {
     `# Session identity — OMNIFIELD_SCOPE=${scope} (UNRESOLVED)`,
     ``,
     `**Аномалия**: scope "${scope}" не резолвится в зону (нет в \`.omnifield/harness.yaml\`).`,
-    `devbox-session.sh должен был блокировать запуск. Доступные: ${list}.`,
+    `Впиши зону в \`.omnifield/harness.yaml\` (секция \`zones:\`) или перезапусти под верным scope. Доступные сейчас: ${list}.`,
     ``,
     `**Action**: STOP. Сообщи user — scope невалидный. Не начинай работу (нет boundary/ownership).`,
   ].join("\n");
