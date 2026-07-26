@@ -36,3 +36,8 @@ git:
   architect: full
   owner: commit-only
   layer: none
+
+# Слот grabli (BRAIN2-7): затыки/грабли догфуда — в центральный GRABLI2 (под контролем
+# architect; старший актуальный, старый GRABLI — легаси).
+grabli:
+  workspace: GRABLI2

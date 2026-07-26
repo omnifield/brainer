@@ -12,6 +12,7 @@ import { blockReason, currentAccess } from "../harness/hooks/git-gate.mjs";
 import {
   DEFAULT_CONFIG,
   gitAccess,
+  grabliTarget,
   knownScopes,
   loadConfig,
   normalizeConfig,
@@ -73,6 +74,15 @@ test("loadConfig читает зоны/пины/архитекторов из Д
   assert.equal(cfg.models.owner, "model-own");
   assert.deepEqual(Object.keys(cfg.zones).sort(), ["alpha", "beta"]);
   assert.deepEqual(zonePaths(cfg.zones.alpha), ["packages/alpha", "packages/alpha-shared"]);
+});
+
+// --- grabli-слот (BRAIN2-7) --------------------------------------------------
+
+test("grabliTarget: ws из слота; пусто/не задан → null", () => {
+  assert.equal(grabliTarget(normalizeConfig({ grabli: { workspace: "GRABLI2" } })), "GRABLI2");
+  assert.equal(grabliTarget(normalizeConfig({})), null); // слот не задан
+  assert.equal(grabliTarget(normalizeConfig({ grabli: { workspace: "  " } })), null); // пустой
+  assert.equal(grabliTarget(cfg), "GRABLI2"); // из фикстуры
 });
 
 // --- zonePaths: paths[] канон ∪ legacy path ∪ голая строка --------------------

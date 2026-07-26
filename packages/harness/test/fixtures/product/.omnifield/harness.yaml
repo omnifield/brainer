@@ -18,3 +18,5 @@ git:
   architect: full
   owner: commit-only
   layer: none
+grabli:
+  workspace: GRABLI2

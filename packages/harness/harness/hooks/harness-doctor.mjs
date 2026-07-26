@@ -10,6 +10,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   gitAccess,
+  grabliTarget,
   knownScopes,
   loadConfig,
   parseYaml,
@@ -56,6 +57,9 @@ p("");
 if (config.product) p(ok(`продукт: ${config.product}`));
 else p(warn("продукт не задан (`product:` пуст) — баннер попросит вписать"));
 p(`архитекторов сконфигурено: ${config.architects}`);
+const grabli = grabliTarget(config);
+if (grabli) p(ok(`grabli-ws: ${grabli} (затыки/грабли пишем сюда)`));
+else p(warn("grabli-ws не задан (`grabli.workspace`) — канал записи граблей не сконфигурен"));
 p("");
 
 // --- зоны --------------------------------------------------------------------

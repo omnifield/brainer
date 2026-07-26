@@ -26,6 +26,9 @@ export const DEFAULT_CONFIG = {
   models: {},
   zones: {},
   git: { ...GIT_INVARIANT },
+  // Слот grabli (BRAIN2-7): куда агенты пишут затыки/грабли. Дефолта нет — если продукт
+  // не задал, запись грабли не адресована (правило рамки остаётся, но канал не сконфигурен).
+  grabli: null,
 };
 
 /** Коэрция скалярного YAML-значения: quotes strip, int, bool, иначе строка. */
@@ -116,7 +119,14 @@ export function normalizeConfig(parsed) {
     models: c.models && typeof c.models === "object" ? c.models : {},
     zones: normalizeZones(c.zones),
     git: { ...GIT_INVARIANT, ...(c.git && typeof c.git === "object" ? c.git : {}) },
+    grabli: c.grabli && typeof c.grabli === "object" ? c.grabli : DEFAULT_CONFIG.grabli,
   };
+}
+
+/** Целевой ws для записи граблей/затыков (BRAIN2-7), либо null если слот не сконфигурен. */
+export function grabliTarget(config) {
+  const ws = config?.grabli?.workspace;
+  return typeof ws === "string" && ws.trim() ? ws.trim() : null;
 }
 
 /** Читает `.omnifield/harness.yaml` из cwd; нет файла/парс упал → DEFAULT_CONFIG. */
