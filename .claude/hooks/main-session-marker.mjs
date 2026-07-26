@@ -14,11 +14,13 @@
 //
 // Contract (SessionStart): stdin JSON { session_id, cwd, ... }; stdout {}; exit 0 (fail-open).
 
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { argv } from "node:process";
+import { fileURLToPath } from "node:url";
 
 function silent() {
-  process.stdout.write('{}');
+  process.stdout.write("{}");
   process.exit(0);
 }
 
@@ -26,14 +28,14 @@ function main() {
   let input;
   try {
     // strip BOM: Windows-пайпы (PowerShell) могут префиксовать stdin.
-    input = JSON.parse(readFileSync(0, 'utf8').replace(/^﻿/, ''));
+    input = JSON.parse(readFileSync(0, "utf8").replace(/^﻿/, ""));
   } catch {
     silent();
     return;
   }
 
   const scope = process.env.OMNIFIELD_SCOPE;
-  if (scope !== 'main') {
+  if (scope !== "main") {
     silent();
     return;
   }
@@ -45,12 +47,12 @@ function main() {
     return;
   }
 
-  const marker = join(cwd, '.claude', '.main-session-id');
+  const marker = join(cwd, ".claude", ".main-session-id");
   try {
     mkdirSync(dirname(marker), { recursive: true });
     let ids = [];
     try {
-      ids = readFileSync(marker, 'utf8')
+      ids = readFileSync(marker, "utf8")
         .split(/\r?\n/)
         .map((l) => l.trim())
         .filter(Boolean);
@@ -59,7 +61,7 @@ function main() {
     }
     ids = ids.filter((id) => id !== String(sessionId));
     ids.push(String(sessionId)); // свежий — в конец; кап срезает старейшие
-    writeFileSync(marker, `${ids.slice(-20).join('\n')}\n`, 'utf8');
+    writeFileSync(marker, `${ids.slice(-20).join("\n")}\n`, "utf8");
   } catch {
     /* fail-open */
   }
@@ -67,8 +69,11 @@ function main() {
   silent();
 }
 
-try {
-  main();
-} catch {
-  silent();
+// Исполняем main() ТОЛЬКО как скрипт (main читает stdin(0) и вызывает process.exit).
+if (fileURLToPath(import.meta.url) === argv[1]) {
+  try {
+    main();
+  } catch {
+    silent();
+  }
 }

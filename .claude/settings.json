@@ -10,6 +10,15 @@
             "command": "node .claude/hooks/git-gate.mjs"
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write|NotebookEdit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/governance.mjs"
+          }
+        ]
       }
     ],
     "SessionStart": [

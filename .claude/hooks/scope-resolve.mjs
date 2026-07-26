@@ -1,34 +1,26 @@
 #!/usr/bin/env node
-// scope-resolve.mjs — единый маппинг scope → зона brainer. Двойной режим:
-//   - CLI: `node scope-resolve.mjs <scope>` → stdout JSON, exit 0 (OK) | exit 1 (unknown).
-//   - import: `import { resolveScope } from './scope-resolve.mjs'`.
+// scope-resolve.mjs — резолв scope → зона продукта, config-driven (зоны из
+// `.omnifield/harness.yaml`, НЕ хардкод). Двойной режим:
+//   - CLI:    `node scope-resolve.mjs <scope>` → stdout JSON, exit 0 (OK) | 1 (unknown).
+//   - import: `import { resolveScope } from './scope-resolve.mjs'` (грузит конфиг из cwd).
 //
-// scope = leaf-имя зоны (либо 'main' = architect). Зоны brainer (packages/<name>/).
+// scope = leaf-имя зоны (либо 'main' = architect). Первоисточник зон — конфиг (kb:BRAIN-3).
 
-export const ZONES = {
-  kernel: { relativePath: 'packages/kernel', name: 'kernel — agent-as-provider seam (capability/provider/router/entitlement)' },
-  orchestrator: { relativePath: 'packages/orchestrator', name: 'orchestrator — session lifecycle + provider registry + telemetry aggregation' },
-  backend: { relativePath: 'packages/backend', name: 'backend — product API/BFF over orchestrator' },
-  frontend: { relativePath: 'packages/frontend', name: 'frontend — control-panel dashboard (the interface)' },
-  harness: { relativePath: 'packages/harness', name: 'harness — agent-harness plugin: роли/хуки/шаблоны (@brainer/agent-harness-plugin), доставка через skeleton plugin-target agent-harness' },
-  content: { relativePath: 'content', name: 'content — doc etalons (dogfood)' },
-};
+import { argv } from "node:process";
+import { fileURLToPath } from "node:url";
+import { knownScopes, loadConfig, resolveScope as resolveWithConfig } from "./harness-config.mjs";
 
-export function resolveScope(scope) {
-  if (scope === 'main') return { kind: 'main', scope: 'main' };
-  const zone = ZONES[scope];
-  if (!zone) return null;
-  return { kind: 'zone', scope, relativePath: zone.relativePath, name: zone.name };
+/** Резолвит scope, читая зоны из конфига (по умолчанию — из cwd). */
+export function resolveScope(scope, cwd = process.cwd()) {
+  return resolveWithConfig(scope, loadConfig(cwd));
 }
-
-import { fileURLToPath } from 'node:url';
-import { argv } from 'node:process';
 
 if (fileURLToPath(import.meta.url) === argv[1]) {
   const scope = argv[2];
-  const resolved = resolveScope(scope);
+  const config = loadConfig(process.cwd());
+  const resolved = resolveWithConfig(scope, config);
   if (!resolved) {
-    const list = ['main', ...Object.keys(ZONES)].join(', ');
+    const list = knownScopes(config).join(", ");
     process.stderr.write(`ERROR: unknown scope "${scope}". Доступные: ${list}\n`);
     process.exit(1);
   }

@@ -1,0 +1,38 @@
+# harness.yaml — роль-модель brainer (dogfood-сид, BRAIN2). Данные под ЭТОТ продукт;
+# рамка (инварианты ролей) — .claude/agents/*.md. Схема/семантика — kb:BRAIN2-2.
+apiVersion: omnifield.dev/v1
+kind: harness
+
+product: brainer
+architects: 1
+
+models:
+  architect: claude-opus-4-8
+  owner: claude-opus-4-8
+  layer: claude-haiku-4-5-20251001
+
+# Зоны brainer: scope (leaf) → paths[] (BRAIN2-1: массив папок, пути зон disjoint).
+zones:
+  kernel:
+    paths: [packages/kernel]
+    description: agent-as-provider шов
+  orchestrator:
+    paths: [packages/orchestrator]
+    description: lifecycle сессий + провайдеры + телеметрия
+  backend:
+    paths: [packages/backend]
+    description: API/BFF
+  bridge:
+    paths: [packages/bridge]
+    description: мост претрансляции
+  frontend:
+    paths: [packages/frontend]
+    description: control-panel дашборд
+  harness:
+    paths: [packages/harness]
+    description: agent-harness плагин (роль-рамка + пресет-сид)
+
+git:
+  architect: full
+  owner: commit-only
+  layer: none
