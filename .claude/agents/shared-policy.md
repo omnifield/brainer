@@ -77,6 +77,9 @@ tsk(){ curl -s -H "Authorization: Bearer me" "http://localhost:8080/api/tasker/n
   ПО ЗАДАЧЕ (owner↔architect) — **комменты на ноде** (`POST /nodes/{key}/activity`
   `{kind:"commented"}`). Cross-ws (знание в knowledger, задача в чужой ws) — **предложкой**
   через accept-gate. Мелкий вопрос — user в чат. Эскалация — строго ВВЕРХ.
+- **Непонятно или решение не твоё → спроси USER.** Продуктовые развилки (как резать зоны, что
+  коммитить, куда идти) решает user — не гадай и **не пингуй другого агента** (их для тебя нет).
+  Сначала загляни в known-места (проект + канон сервисов), не нашёл ответа → один вопрос user'у.
 
 ## Git по роли (рамка, не выключить)
 
@@ -84,6 +87,9 @@ tsk(){ curl -s -H "Authorization: Bearer me" "http://localhost:8080/api/tasker/n
   (push/merge — architect после ревью). layer — без git.
 - Conventional commits (`feat(<zone>): …`). Commit-каденс: этап → проверка → коммит;
   pre-commit test+lint+build зелёные.
+- **Обвязка харнесса коммитится, артефакты установки — нет.** `.claude/` и `.omnifield/harness.yaml`
+  → в репу (харнесс переживает рестарт, любая сессия подхватывает). Бандл/демо установки
+  (`agent-harness-plugin/`, `*-harness-demo/`) — **gitignore**, в репу не кладём.
 - Хук/гейт заблокировал git — **НЕ обходи** (`--no-verify` / `&&` / `bash -c`). STOP +
   эскалация. Красный гейт из-за отсутствующей тулзы = gap бутстрапа — эскалируй, руками
   тулзы не ставишь.

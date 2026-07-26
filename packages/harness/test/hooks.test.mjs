@@ -22,6 +22,7 @@ import {
   validateConfig,
   zonePaths,
 } from "../harness/hooks/harness-config.mjs";
+import { needsOnboarding } from "../harness/hooks/scope-identity.mjs";
 import block from "../harness/settings.hooks.json" with { type: "json" };
 import { mergeSettingsBlock } from "../harness/settings-block.mjs";
 
@@ -264,6 +265,15 @@ test("identity: owner-баннер перечисляет ВСЕ папки path
 test("identity: неизвестный scope → UNRESOLVED-аномалия", () => {
   const out = JSON.parse(runIdentity("gamma")).hookSpecificOutput.additionalContext;
   assert.match(out, /UNRESOLVED/);
+});
+
+// --- онбординг: незаполненный сид (BRAIN2-8) ---------------------------------
+
+test("needsOnboarding: my-product/пусто → true; заданный продукт → false", () => {
+  assert.equal(needsOnboarding({ product: "my-product" }), true); // placeholder шаблона
+  assert.equal(needsOnboarding({ product: null }), true); // не задан
+  assert.equal(needsOnboarding({ product: "baser" }), false); // заполнен под продукт
+  assert.equal(needsOnboarding(cfg), false); // фикстура: product=acme
 });
 
 // --- settings-block: идемпотентный splice ------------------------------------

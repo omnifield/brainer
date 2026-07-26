@@ -34,6 +34,41 @@ function productLabel(config) {
     : "этого продукта (имя не задано в `.omnifield/harness.yaml` → впиши `product:`)";
 }
 
+/**
+ * Сид не заполнен под продукт (BRAIN2-8): product пуст/отсутствует ИЛИ равен placeholder'у
+ * нейтрального шаблона (`my-product`). Тогда architect стартует в ОНБОРДИНГ-режим, а не как
+ * настроенный продукт. Не паника — «это общий шаблон, первая задача = конфиг с user».
+ */
+export function needsOnboarding(config) {
+  return !config.product || config.product === "my-product";
+}
+
+function onboardingBanner(config) {
+  return [
+    `# Session identity — OMNIFIELD_SCOPE=main (architect · ОНБОРДИНГ)${modelLine(config, "architect")}`,
+    ``,
+    `Ты **architect/main**, но \`.omnifield/harness.yaml\` — ещё НЕЗАПОЛНЕННЫЙ общий шаблон`,
+    `(\`product: ${config.product ?? "(пусто)"}\`, зоны/пины — placeholder). Это НЕ аномалия и НЕ повод паниковать:`,
+    `**твоя первая задача — ОНБОРДИНГ, не работа.** Заполни роль-модель под этот продукт ВМЕСТЕ с user.`,
+    ``,
+    `## Порядок онбординга`,
+    `1. **Пойми проект** (known-места, не спрашивая других агентов): \`README\`/\`*.md\`, \`package.json\`/манифесты,`,
+    `   \`git log\`/структура папок. Определи реальные пакеты/папки — будущие зоны.`,
+    `2. **Найди роадмап/канон продукта в сервисах** (если есть): tasker/knowledger ws по ИМЕНИ продукта`,
+    `   (версия-приоритет — старшая, напр. \`FOO2\` > \`FOO\`). Нет — не выдумывай.`,
+    `3. **Предложи user конфиг** и заполните \`harness.yaml\` вместе: \`product\`, \`zones\` (\`paths[]\` из РЕАЛЬНЫХ`,
+    `   папок, disjoint), \`models\` (по факту сессии), \`grabli.workspace\`. Решения по продукту — за **user**.`,
+    `4. **Проект пустой** (нечего изучать) → поговори с user: что строим, какие зоны в планах → засидь под это.`,
+    ``,
+    `## Пока сид не заполнен`,
+    `- **Owner'ов НЕ поднимаем** — governance режет по placeholder-путям, owner упрётся в стену.`,
+    `- **Непонятно — спрашивай USER** (не другого агента; агенты друг друга не зовут).`,
+    `- Проверка после заполнения: \`node .claude/hooks/harness-doctor.mjs\`.`,
+    `- Обвязку (\`.claude/\`, \`.omnifield/harness.yaml\`) — закоммить в репу; артефакты установки`,
+    `  (\`agent-harness-plugin/\`, демо-папки) — НЕ коммить (gitignore).`,
+  ].join("\n");
+}
+
 function architectBanner(config) {
   return [
     `# Session identity — OMNIFIELD_SCOPE=main (architect)${modelLine(config, "architect")}`,
@@ -92,7 +127,9 @@ function main() {
   const scope = process.env.OMNIFIELD_SCOPE;
   if (!scope) return silent();
   const config = loadConfig(process.cwd());
-  if (scope === "main") return emit(architectBanner(config));
+  if (scope === "main") {
+    return emit(needsOnboarding(config) ? onboardingBanner(config) : architectBanner(config));
+  }
   const resolved = resolveScope(scope, config);
   if (resolved?.kind !== "zone") return emit(anomalyBanner(config, scope));
   return emit(ownerBanner(config, resolved));

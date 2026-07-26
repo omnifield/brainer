@@ -56,7 +56,10 @@ node /путь/к/agent-harness-plugin/install.mjs --dry-run .
    \`models\`, \`grabli.workspace\`.
 2. Проверка: \`node .claude/hooks/harness-doctor.mjs\` (зоны, валидатор, роль, grabli).
 3. Запусти сессию с \`OMNIFIELD_SCOPE=main\` (architect) или \`=<zone>\` (owner) — SessionStart-хук
-   впаяет identity; governance/git-gate начнут держать границы.
+   впаяет identity; на незаполненном сиде architect стартует в ОНБОРДИНГ-режим (заполните
+   \`harness.yaml\` вместе), иначе governance/git-gate сразу держат границы.
+4. **Коммить обвязку, НЕ артефакты:** \`.claude/\` + \`.omnifield/harness.yaml\` → в репу; папку
+   этого бандла (\`agent-harness-plugin/\`) и демо — в \`.gitignore\`, в репу не клади.
 
 ## Карта frame (что куда, режим)
 
