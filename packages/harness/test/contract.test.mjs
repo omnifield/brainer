@@ -2,6 +2,7 @@
 // дуальная доставка консистентна, каждый frame.src существует. node:test, ноль зависимостей.
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
   readJson,
@@ -61,6 +62,25 @@ test("рамка покрывает все три роли + shared-policy + set
   ]) {
     assert.ok(dests.includes(d), `frame не кладёт ${d}`);
   }
+});
+
+test("frame несёт помощников research/routine (mode:exact) — BRAIN2-4", () => {
+  const byDest = Object.fromEntries(
+    readJson("package.json").omnifield.frame.map((f) => [f.dest, f.mode]),
+  );
+  assert.equal(byDest[".claude/agents/research.md"], "exact");
+  assert.equal(byDest[".claude/agents/routine.md"], "exact");
+});
+
+test("research = read-only тулсетом (нет Edit/Write/Bash); routine правит (гейт режет)", () => {
+  const read = (p) => readFileSync(new URL(`../harness/helpers/${p}`, import.meta.url), "utf8");
+  const rTools = /tools:\s*(.+)/.exec(read("research.md"))[1];
+  for (const forbidden of ["Edit", "Write", "Bash"]) {
+    assert.ok(!rTools.includes(forbidden), `research НЕ должен иметь ${forbidden}: ${rTools}`);
+  }
+  assert.match(rTools, /Read/);
+  const routineTools = /tools:\s*(.+)/.exec(read("routine.md"))[1];
+  assert.match(routineTools, /Edit/); // routine правит — но governance режет по paths[] родителя
 });
 
 test("роли — mode:exact, settings-регистрация — mode:merge, config-сид — mode:seed", () => {

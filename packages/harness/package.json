@@ -44,6 +44,16 @@
         "mode": "exact"
       },
       {
+        "src": "helpers/research.md",
+        "dest": ".claude/agents/research.md",
+        "mode": "exact"
+      },
+      {
+        "src": "helpers/routine.md",
+        "dest": ".claude/agents/routine.md",
+        "mode": "exact"
+      },
+      {
         "src": "hooks/harness-config.mjs",
         "dest": ".claude/hooks/harness-config.mjs",
         "mode": "exact"
