@@ -19,6 +19,7 @@ import {
   parseYaml,
   resolveScope,
   roleOf,
+  serviceBase,
   validateConfig,
   zonePaths,
 } from "../harness/hooks/harness-config.mjs";
@@ -84,6 +85,18 @@ test("grabliTarget: ws из слота; пусто/не задан → null", ()
   assert.equal(grabliTarget(normalizeConfig({})), null); // слот не задан
   assert.equal(grabliTarget(normalizeConfig({ grabli: { workspace: "  " } })), null); // пустой
   assert.equal(grabliTarget(cfg), "GRABLI2"); // из фикстуры
+});
+
+// --- services-слот (BRAIN2-9): доступ curl'ом, база из конфига --------------
+
+test("serviceBase: база из слота (хвостовой / срезан); нет/пусто → null", () => {
+  const c = normalizeConfig({
+    services: { tasker: "http://tasker:8030/tasker/", knowledger: " " },
+  });
+  assert.equal(serviceBase(c, "tasker"), "http://tasker:8030/tasker"); // трейлинг-слеш срезан
+  assert.equal(serviceBase(c, "knowledger"), null); // пустой
+  assert.equal(serviceBase(normalizeConfig({}), "tasker"), null); // слот не задан
+  assert.equal(serviceBase(cfg, "knowledger"), "http://knowledger:8040/knowledger"); // фикстура
 });
 
 // --- zonePaths: paths[] канон ∪ legacy path ∪ голая строка --------------------

@@ -46,3 +46,13 @@ git:
 # Дефолт — центральный беклог под контролем architect; ЗАМЕНИ/убери под свой продукт.
 grabli:
   workspace: GRABLI2
+
+# Слот services (BRAIN2-9): базы omnifield-сервисов. Доступ — CURL (Bash), НЕ MCP-инструменты
+# (их может не быть — норма). Адрес ЗАВИСИТ ОТ ОКРУЖЕНИЯ, подставь рабочий:
+#   • сосед по docker-сети (product-devbox):  http://tasker:8030/tasker · http://knowledger:8040/knowledger
+#   • если соседи недоступны — дверь через хост: http://host.docker.internal:8080/api/tasker · .../api/knowledger
+#   • localhost:8080 — ТОЛЬКО с хост-машины, НЕ изнутри контейнера.
+# Проверка связи: `curl -s <base>/healthz`. Сэндбокс Bash режет сеть → выполняй с сэндбоксом off.
+services:
+  tasker: http://tasker:8030/tasker
+  knowledger: http://knowledger:8040/knowledger

@@ -41,3 +41,9 @@ git:
 # architect; старший актуальный, старый GRABLI — легаси).
 grabli:
   workspace: GRABLI2
+
+# Слот services (BRAIN2-9): доступ curl'ом (НЕ MCP). Из ЭТОГО devbox работает дверь через хост
+# (соседи :8030/:8040 отсюда недоступны). Сэндбокс Bash режет сеть → curl с сэндбоксом off.
+services:
+  tasker: http://host.docker.internal:8080/api/tasker
+  knowledger: http://host.docker.internal:8080/api/knowledger

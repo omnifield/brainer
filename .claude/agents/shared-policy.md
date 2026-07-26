@@ -35,15 +35,24 @@
   именование npm-пакетов `@omnifield/<product>-<package>` (`MECH-15`).
 - Онбординг сессии — `BRAIN-5`. Свой продуктовый раздел — воркспейс твоего продукта.
 
-Доступ (auth-стаб: любой непустой handle; тело статьи knowledger — в `body`, тело задачи
-tasker — в `description`):
+**Доступ = HTTP curl'ом через Bash — НЕ через MCP-инструменты.** MCP-тулзов для tasker/
+knowledger может НЕ быть в сессии — это норма, не повод сдаться: ходишь `curl`'ом. База —
+слот `services` из `harness.yaml` (BRAIN2-9). Адрес зависит от окружения:
 ```
-# через дверь single-origin (снаружи машины, FUND-5):
-kb(){  curl -s -H "Authorization: Bearer me" "http://localhost:8080/api/knowledger/nodes/$1"; }
-tsk(){ curl -s -H "Authorization: Bearer me" "http://localhost:8080/api/tasker/nodes/$1"; }
-# внутри product-devbox (сосед по docker-сети): http://knowledger:8040/knowledger/… · http://tasker:8030/tasker/…
+# базы бери из harness.yaml (config.services.tasker / .knowledger). Типовые:
+#   сосед по docker-сети (product-devbox):  http://tasker:8030/tasker · http://knowledger:8040/knowledger
+#   если соседи недоступны — дверь через хост: http://host.docker.internal:8080/api/tasker · .../api/knowledger
+#   localhost:8080 — ТОЛЬКО с ХОСТ-машины, изнутри контейнера НЕ отвечает (частый затык).
+TSK=http://tasker:8030/tasker; KB=http://knowledger:8040/knowledger   # ← подставь свои из services
+curl -s -H "Authorization: Bearer me" "$KB/nodes/<KEY>"       # узел knowledger (тело — в body)
+curl -s -H "Authorization: Bearer me" "$TSK/nodes/<KEY>"      # узел tasker (тело — в description)
+curl -s "$TSK/healthz"                                         # проверка связи (без auth)
 ```
-Дерево раздела: `…/knowledger/workspaces/<WS>/tree` (WS: `FUND`·`KNOW`·`TSK`·`MECH` + свой).
+- **Нет связи?** (1) проверь `curl $TSK/healthz`; (2) **Bash-сэндбокс режет сеть** → выполни
+  запрос с ОТКЛЮЧЁННЫМ сэндбоксом (для доступа к сервисам это ожидаемо); (3) смени адрес
+  (сосед ↔ дверь через хост). Не «сервисы недоступны» — сначала перебери эти три.
+- auth-стаб: любой непустой handle (пишется как actor). Дерево раздела:
+  `$KB/workspaces/<WS>/tree` (WS: `FUND`·`KNOW`·`TSK`·`MECH` + свой продуктовый).
 
 ## Роль впаяна на старте
 

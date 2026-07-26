@@ -29,6 +29,9 @@ export const DEFAULT_CONFIG = {
   // Слот grabli (BRAIN2-7): куда агенты пишут затыки/грабли. Дефолта нет — если продукт
   // не задал, запись грабли не адресована (правило рамки остаётся, но канал не сконфигурен).
   grabli: null,
+  // Слот services (BRAIN2-9): базы omnifield-сервисов — доступ curl'ом (НЕ MCP). Адрес
+  // зависит от окружения (сосед по docker-сети vs дверь через хост). null → не сконфигурен.
+  services: null,
 };
 
 /** Коэрция скалярного YAML-значения: quotes strip, int, bool, иначе строка. */
@@ -120,6 +123,7 @@ export function normalizeConfig(parsed) {
     zones: normalizeZones(c.zones),
     git: { ...GIT_INVARIANT, ...(c.git && typeof c.git === "object" ? c.git : {}) },
     grabli: c.grabli && typeof c.grabli === "object" ? c.grabli : DEFAULT_CONFIG.grabli,
+    services: c.services && typeof c.services === "object" ? c.services : DEFAULT_CONFIG.services,
   };
 }
 
@@ -127,6 +131,12 @@ export function normalizeConfig(parsed) {
 export function grabliTarget(config) {
   const ws = config?.grabli?.workspace;
   return typeof ws === "string" && ws.trim() ? ws.trim() : null;
+}
+
+/** База сервиса (`tasker`/`knowledger`) из слота services — доступ curl'ом; null если не задан. */
+export function serviceBase(config, name) {
+  const b = config?.services?.[name];
+  return typeof b === "string" && b.trim() ? b.trim().replace(/\/+$/, "") : null;
 }
 
 /** Читает `.omnifield/harness.yaml` из cwd; нет файла/парс упал → DEFAULT_CONFIG. */

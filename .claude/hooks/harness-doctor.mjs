@@ -17,6 +17,7 @@ import {
   rejectedZoneNames,
   resolveScope,
   roleOf,
+  serviceBase,
   validateConfig,
   zonePaths,
 } from "./harness-config.mjs";
@@ -60,6 +61,16 @@ p(`архитекторов сконфигурено: ${config.architects}`);
 const grabli = grabliTarget(config);
 if (grabli) p(ok(`grabli-ws: ${grabli} (затыки/грабли пишем сюда)`));
 else p(warn("grabli-ws не задан (`grabli.workspace`) — канал записи граблей не сконфигурен"));
+const tsk = serviceBase(config, "tasker");
+const kb = serviceBase(config, "knowledger");
+if (tsk || kb) {
+  p(ok(`services (доступ curl'ом, НЕ MCP): tasker=${tsk ?? "—"} · knowledger=${kb ?? "—"}`));
+  p(
+    `    проверь связь: curl -s ${tsk ?? "<tasker>"}/healthz  (нет ответа → сэндбокс off / смени адрес)`,
+  );
+} else {
+  p(warn("services не заданы (`services.tasker/.knowledger`) — базы сервисов не сконфигурены"));
+}
 p("");
 
 // --- зоны --------------------------------------------------------------------

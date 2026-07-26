@@ -20,3 +20,6 @@ git:
   layer: none
 grabli:
   workspace: GRABLI2
+services:
+  tasker: http://tasker:8030/tasker
+  knowledger: http://knowledger:8040/knowledger
