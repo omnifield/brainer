@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "artifacts": [
+    {
+      "dest": ".devcontainer/devcontainer-lock.json",
+      "src": "devcontainer-lock.json",
+      "source": "omnifield/devbox",
+      "version": "0.6.0",
+      "class": "regenerated",
+      "hash": "sha256:5ca0a1a0a1b7f1b4c09670946a9689a6b10fe50ee6ad0d699334bed98fce7012"
+    },
+    {
+      "dest": ".devcontainer/devcontainer.json",
+      "src": "devcontainer.json.ejs",
+      "source": "omnifield/devbox",
+      "version": "0.6.0",
+      "class": "regenerated",
+      "hash": "sha256:465e2dac41d3e7e9c63603184e86a469c6c8e92a66cc7a7884d4f5d9e34b6d3b"
+    }
+  ]
+}

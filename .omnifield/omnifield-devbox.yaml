@@ -1,0 +1,16 @@
+# Настройки обвеса omnifield/devbox (@omnifield/baser-devbox). Файл ТВОЙ: движок только читает;
+# не заполнил — работает дефолт/пресет (kb:BASER2-5). Форма — ключ `baser` (presets + settings).
+
+baser:
+  # Раскладка omnifield: общая сеть omnifield-gateway (соседи tasker/knowledger по имени),
+  # общие тома secrets/pnpm-store, ассистент внутри контейнера.
+  presets:
+    - omnifield
+  settings:
+    # Идентичность scope репозитория для гейта приватного реестра (пресет его не задаёт).
+    npmScope: "@omnifield"
+    npmScopeIsPrivate: true
+    # Стек brainer — biome, не prettier/angular: обвес форматирование не навязывает,
+    # .vscode/ репо рулит сам (null = ни formatOnSave, ни чужих расширений).
+    editorFormatter: null
+    editorExtensions: []

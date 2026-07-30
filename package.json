@@ -19,6 +19,8 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.3",
+    "@omnifield/baser-cli": "^0.0.3",
+    "@omnifield/baser-devbox": "^0.6.0",
     "@omnifield/biome-preset": "^0.1.1",
     "@omnifield/nx-preset": "^0.1.3",
     "@omnifield/skeleton": "^0.7.7",
