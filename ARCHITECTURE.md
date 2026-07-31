@@ -16,7 +16,7 @@ owner'ов всех продуктов, включая сам brainer).
 
 - **Capability** — контракт агентной сессии (запустить / статус / активность / бриф / стоп).
 - **Provider** — реализация на ресурсе:
-  - `claude-code` — внешний Claude Code процесс (через claude-scope). **MVP: только он.**
+  - `claude-code` — внешний Claude Code процесс (headless-адаптер CLI). **MVP: только он.**
   - `self-hosted` — наш agent-loop на `backend/llm` (ADR 065 ф.5 + ADR 074, tool-calling
     ADR 043 MCP-toolbus, встраиваемый примитив ADR 035 web-agent). **Позже, extension.**
   - `peer` — агент на чужой ноде. Позже.
@@ -33,18 +33,20 @@ owner'ов всех продуктов, включая сам brainer).
 | `packages/kernel/` | agent-as-provider шов (capability/provider/router/entitlement) | → общий `engines`-репо |
 | `packages/orchestrator/` | lifecycle сессий + реестр провайдеров + агрегация OTEL-телеметрии | → shared |
 | `packages/backend/` | продуктовый API/BFF над orchestrator | остаётся |
+| `packages/bridge/` | мост претрансляции (агент = участник chater) | остаётся |
 | `packages/frontend/` | control-panel дашборд (тот недостающий интерфейс) | остаётся (позже — фреймворк-фронт) |
-| `content/` | doc-эталоны (догфуд) → под них позже пишем docs-продукт | остаётся |
+| `packages/harness/` | agent-harness плагин: роль-рамка + пресет-сид | → обвес (`tasker:BRAIN2-17`) |
 
 **Условие extract-без-боли:** `kernel`/`orchestrator` самодостаточны; `backend` зависит
 от них через интерфейс. Вынос = `git mv`, не переписывание.
 
 ## Существующий субстрат (переиспользуем, не greenfield)
 
-- **OTEL-телеметрия сессий УЖЕ течёт**: `claude-scope` шлёт scope / промпты / tool-детали
-  в локальный collector (:4317, оракул `docker/observability`, Grafana :3300).
-  orchestrator читает этот поток → статус/активность сессий бесплатно.
-- **claude-scope launcher** — спавн сессии со scope; backend оборачивает его в ручку.
+- **OTEL-телеметрия сессий УЖЕ течёт**: хуки харнесса шлют scope / промпты / tool-детали
+  в коллектор (`BRAINER_OTEL_ENDPOINT`, стек observability, Grafana). orchestrator читает
+  этот поток → статус/активность сессий бесплатно.
+- **Спавн сессий** — headless-адаптер `claude-code` в backend (прежний ps1-лаунчер
+  `claude-scope` снят, `BRAIN-7`); роль сессии задаётся `OMNIFIELD_SCOPE`.
 - **FleetView** (мульти-агент вью харнесса) — свериться до стройки, не изобретать готовое.
 
 ## MVP (узко)

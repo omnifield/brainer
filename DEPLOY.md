@@ -2,8 +2,7 @@
 
 ## Принципы (канон)
 
-1. **Containers-only** (фундамент user 2026-07-10, devopser
-   `briefs/containers-only-and-management.md`): на машине — только Docker и
+1. **Containers-only** (фундамент user 2026-07-10, канон `kb:FUND-4`): на машине — только Docker и
    файлы. Backend, frontend и claude-сессии (их спавнит backend; claude CLI +
    креды живут в секрет-volume) исполняются в devbox-контейнере. Хост-путь —
    легаси (чекпойнт `container-sessions-default`).
