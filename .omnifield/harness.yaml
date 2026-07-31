@@ -6,10 +6,12 @@ kind: harness
 product: brainer
 architects: 1
 
+# Пины моделей по роли. Берём АЛИАСЫ, не снапшоты с датой: алиас едет за выпусками,
+# снапшот замораживает сессии на конкретной сборке. Сверено со справочником моделей 2026-07-31.
 models:
-  architect: claude-opus-5
-  owner: claude-opus-4-8
-  layer: claude-haiku-4-5-20251001
+  architect: claude-opus-5 # $5/$25 за 1M, контекст 1M
+  owner: claude-opus-5 # та же цена, что у 4.8, и сильнее на агентном кодинге
+  layer: claude-haiku-4-5 # $1/$5 — узкий одноартефактный промпт, контекст 200K
 
 # Зоны brainer: scope (leaf) → paths[] (BRAIN2-1: массив папок, пути зон disjoint).
 zones:
@@ -30,7 +32,7 @@ zones:
     description: control-panel дашборд
   harness:
     paths: [packages/harness]
-    description: agent-harness плагин (роль-рамка + пресет-сид)
+    description: обвес agent-harness (роль-рамка + хуки + пресет-сид), @omnifield/brainer-harness
 
 git:
   architect: full
