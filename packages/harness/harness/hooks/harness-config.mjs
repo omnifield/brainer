@@ -8,7 +8,7 @@
 // Файла нет → DEFAULT_CONFIG (degraded, но безопасный: только 'main'/architect известен,
 // зоны пусты → неизвестный scope = аномалия; git по роли — инвариант рамки).
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 // Инвариант рамки (shared-policy) — НЕ продуктовые данные: git-доступ по роли не выключить.
@@ -16,12 +16,14 @@ import { join } from "node:path";
 const GIT_INVARIANT = { architect: "full", owner: "commit-only", layer: "none" };
 
 // Дефолт-пины моделей по роли (ПРЕСЕТ, MECH-7): применяются, если продукт не переопределил
-// `models:` в harness.yaml. architect — сильнейшая (opus-5), owner — opus-4.8, layer — haiku.
-// Продукт крутит конфигом; это лишь разумный дефолт, не инвариант.
+// `models:` в harness.yaml. architect и owner — сильнейшая (opus-5), layer — haiku (узкий
+// одноартефактный промпт). Продукт крутит конфигом; это разумный дефолт, не инвариант.
+// АЛИАСЫ, а не снапшоты с датой: алиас едет за выпусками сам, снапшот замораживает сессии
+// на конкретной сборке. Держать синхронно с сидом (harness.config.example.yaml).
 const MODEL_DEFAULTS = {
   architect: "claude-opus-5",
-  owner: "claude-opus-4-8",
-  layer: "claude-haiku-4-5-20251001",
+  owner: "claude-opus-5",
+  layer: "claude-haiku-4-5",
 };
 
 // Зарезервированные слова роль-модели: 'main' = architect, 'layer' = layer-роль. Зона с таким
@@ -199,13 +201,16 @@ function normPath(p) {
 
 /**
  * Детерминированный валидатор роль-модели (BRAIN2-1, канон schema-validated из kb:BRAIN2-3):
- * каждая зона — непустой набор ОТНОСИТЕЛЬНЫХ путей (не абсолют, без `..`-escape), а пути
- * РАЗНЫХ зон не пересекаются (одна папка — один владелец; disjoint-инвариант). Возвращает
+ * каждая зона — непустой набор ОТНОСИТЕЛЬНЫХ путей (не абсолют, без `..`-escape). Возвращает
  * массив строк-ошибок (пустой = валидно). Не бросает — вызыватели решают, что делать.
+ *
+ * Пересечение путей разных зон ошибкой ЗДЕСЬ НЕ СЧИТАЕТСЯ и живёт отдельно —
+ * `overlappingZones()`. Причина: `governance` конфиг не валидирует и правку в пересечении
+ * пускает, так что «одна папка — один владелец» было обещанием защиты, которой нет
+ * (BRAIN2-46 §4). Механику не трогаем — перестаём врать: это раскладка, а не ошибка.
  */
 export function validateConfig(config) {
   const errors = [];
-  const owned = []; // { zone, path } — нормализованные, для disjoint-проверки
   for (const [zone, def] of Object.entries(config?.zones ?? {})) {
     const paths = zonePaths(def);
     if (!paths.length) {
@@ -218,20 +223,6 @@ export function validateConfig(config) {
         errors.push(`зона "${zone}": путь "${raw}" абсолютный (нужен относительный)`);
       else if (p === "" || p.split("/").includes(".."))
         errors.push(`зона "${zone}": путь "${raw}" невалиден (пустой или содержит "..")`);
-      else owned.push({ zone, path: p });
-    }
-  }
-  // disjoint: любая пара путей из РАЗНЫХ зон не должна совпадать/вкладываться.
-  for (let i = 0; i < owned.length; i++) {
-    for (let j = i + 1; j < owned.length; j++) {
-      const a = owned[i];
-      const b = owned[j];
-      if (a.zone === b.zone) continue;
-      if (nestedOrEqual(a.path, b.path) || nestedOrEqual(b.path, a.path)) {
-        errors.push(
-          `пути зон "${a.zone}" и "${b.zone}" пересекаются: "${a.path}" ↔ "${b.path}" (одна папка — один владелец)`,
-        );
-      }
     }
   }
   return errors;
@@ -257,4 +248,64 @@ export function resolveScope(scope, config) {
 /** Список известных scope'ов (для аномалий/CLI). */
 export function knownScopes(config) {
   return ["main", ...Object.keys(config?.zones ?? {})];
+}
+
+// --- состояние установки: одно знание на баннер и на диагностику ------------
+// Тут живут признаки, по которым инструменты судят о конфиге. Раньше про плейсхолдер знал
+// только баннер, а доктор ставил на него зелёную галочку — два инструмента говорили про одно
+// состояние разное, причём зелёный был у того, которым установку ПРОВЕРЯЮТ (BRAIN2-46 §1).
+
+/** Плейсхолдер продукта из нейтрального шаблона сида. */
+export const PLACEHOLDER_PRODUCT = "my-product";
+
+/**
+ * Сид не заполнен под продукт: `product` пуст/отсутствует ИЛИ равен плейсхолдеру шаблона.
+ * Тогда architect стартует в ОНБОРДИНГ-режим, а доктор говорит «шаблон», а не «✓ продукт».
+ */
+export function needsOnboarding(config) {
+  return !config?.product || config.product === PLACEHOLDER_PRODUCT;
+}
+
+/**
+ * Сверка объявленных зон с диском: какие пути реально существуют в этом репозитории.
+ * `foreign` — зоны объявлены, но НИ ОДИН путь не существует: это не «зоны пустые», а
+ * «конфиг не от этого репозитория» (скопирован из соседнего продукта). Признак был в
+ * данных и раньше — доктор печатал «ПАПКИ НЕТ» по каждой зоне, — но никто не складывал
+ * отметки в вывод, а баннер существование папок не смотрел вовсе (BRAIN2-46 §2).
+ */
+export function zoneReality(config, cwd = process.cwd()) {
+  const rows = [];
+  for (const [zone, def] of Object.entries(config?.zones ?? {})) {
+    for (const path of zonePaths(def)) {
+      rows.push({ zone, path, exists: existsSync(join(cwd, path)) });
+    }
+  }
+  const present = rows.filter((r) => r.exists).length;
+  return { rows, declared: rows.length, present, foreign: rows.length > 0 && present === 0 };
+}
+
+/**
+ * Пары зон с пересекающимися путями. НЕ ошибка: `governance` валидность конфига не проверяет
+ * и правку пускает, поэтому «одна папка — один владелец» здесь — не защита, а раскладка.
+ * Пересечение = машинной границы между этими зонами нет; задумано так — законно (BRAIN2-46 §4).
+ */
+export function overlappingZones(config) {
+  const owned = [];
+  for (const [zone, def] of Object.entries(config?.zones ?? {})) {
+    for (const raw of zonePaths(def)) {
+      const p = normPath(raw);
+      if (!raw.startsWith("/") && p !== "" && !p.split("/").includes("..")) owned.push({ zone, p });
+    }
+  }
+  const pairs = [];
+  for (let i = 0; i < owned.length; i++) {
+    for (let j = i + 1; j < owned.length; j++) {
+      const a = owned[i];
+      const b = owned[j];
+      if (a.zone === b.zone) continue;
+      if (nestedOrEqual(a.p, b.p) || nestedOrEqual(b.p, a.p))
+        pairs.push({ zones: [a.zone, b.zone], paths: [a.p, b.p] });
+    }
+  }
+  return pairs;
 }

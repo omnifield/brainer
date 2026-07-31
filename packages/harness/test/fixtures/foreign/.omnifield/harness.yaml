@@ -1,0 +1,13 @@
+# Фикстура BRAIN2-46 §2: конфиг СКОПИРОВАН из соседнего продукта — заполнен и валиден,
+# но ни одна объявленная папка в этом репозитории не существует. Признак «конфиг не отсюда».
+apiVersion: omnifield.dev/v1
+kind: harness
+product: weber
+architects: 1
+zones:
+  web:
+    paths: [packages/web]
+    description: веб-зона чужого продукта
+  api:
+    paths: [packages/api]
+    description: api-зона чужого продукта

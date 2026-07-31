@@ -15,13 +15,17 @@ import {
   grabliTarget,
   knownScopes,
   loadConfig,
+  needsOnboarding,
   normalizeConfig,
+  overlappingZones,
+  PLACEHOLDER_PRODUCT,
   parseYaml,
   resolveScope,
   roleOf,
   serviceBase,
   validateConfig,
   zonePaths,
+  zoneReality,
 } from "../harness/hooks/harness-config.mjs";
 import {
   declaredRegistrations,
@@ -30,13 +34,21 @@ import {
   missingRegistrations,
   registrationFix,
   registrationReport,
+  report,
   SOURCE_ID,
 } from "../harness/hooks/harness-doctor.mjs";
-import { needsOnboarding } from "../harness/hooks/scope-identity.mjs";
+import {
+  foreignConfigWarning,
+  needsOnboarding as needsOnboardingViaIdentity,
+  noScopeBanner,
+} from "../harness/hooks/scope-identity.mjs";
 import block from "../harness/settings.hooks.json" with { type: "json" };
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PRODUCT_FIXTURE = join(HERE, "fixtures", "product");
+const FOREIGN_FIXTURE = join(HERE, "fixtures", "foreign");
+const PLACEHOLDER_FIXTURE = join(HERE, "fixtures", "placeholder");
+const OVERLAP_FIXTURE = join(HERE, "fixtures", "overlap");
 const MAIN_FIXTURE = join(HERE, "fixtures", "main-session");
 const IDENTITY_HOOK = join(HERE, "..", "harness", "hooks", "scope-identity.mjs");
 
@@ -118,18 +130,33 @@ test("zonePaths: paths[] массив, legacy path одиночный, гола�
   assert.deepEqual(zonePaths({ paths: ["a", "", "  "] }), ["a"]); // пустые отброшены
 });
 
-// --- validateConfig: relative / непустой / disjoint --------------------------
+// --- validateConfig: relative / непустой -------------------------------------
 
 test("validateConfig: валидная роль-модель → нет ошибок", () => {
   assert.deepEqual(validateConfig(cfg), []);
 });
 
-test("validateConfig: пересечение путей разных зон (disjoint) → ошибка", () => {
-  const errs = validateConfig(
-    normalizeConfig({ zones: { a: { paths: ["packages/x"] }, b: { paths: ["packages/x/sub"] } } }),
+test("пересечение зон — НЕ ошибка валидатора (governance его не держит) — BRAIN2-46 §4", () => {
+  const overlapping = normalizeConfig({
+    zones: { a: { paths: ["packages/x"] }, b: { paths: ["packages/x/sub"] } },
+  });
+  assert.deepEqual(validateConfig(overlapping), []); // обещания защиты больше нет
+  const pairs = overlappingZones(overlapping);
+  assert.equal(pairs.length, 1);
+  assert.deepEqual(pairs[0].zones.sort(), ["a", "b"]);
+});
+
+test("overlappingZones: одинаковый путь, вложенный путь и своя же зона", () => {
+  const same = overlappingZones(
+    normalizeConfig({ zones: { a: { paths: ["pkg/x"] }, b: { paths: ["pkg/x"] } } }),
   );
-  assert.equal(errs.length, 1);
-  assert.match(errs[0], /пересека/);
+  assert.equal(same.length, 1);
+  // Несколько папок ОДНОЙ зоны, вложенных друг в друга, пересечением не считаются.
+  const own = overlappingZones(
+    normalizeConfig({ zones: { a: { paths: ["pkg/x", "pkg/x/sub"] } } }),
+  );
+  assert.deepEqual(own, []);
+  assert.deepEqual(overlappingZones(cfg), []); // здоровая фикстура
 });
 
 test("validateConfig: абсолютный путь / '..'-escape / пустой paths[] → ошибки", () => {
@@ -160,8 +187,8 @@ test("loadConfig без файла → DEFAULT_CONFIG (degraded, зоны пус
 test("normalizeConfig достраивает недостающие секции (+ дефолт-пины моделей)", () => {
   const n = normalizeConfig({ zones: { x: { path: "p" } } });
   assert.equal(n.models.architect, "claude-opus-5"); // дефолт-пин (MECH-7 preset)
-  assert.equal(n.models.owner, "claude-opus-4-8");
-  assert.match(n.models.layer, /haiku/);
+  assert.equal(n.models.owner, "claude-opus-5");
+  assert.equal(n.models.layer, "claude-haiku-4-5");
   assert.equal(n.git.architect, "full");
 });
 
@@ -170,6 +197,29 @@ test("models: дефолт-пины применяются, продукт пе�
   assert.equal(n.models.architect, "claude-opus-5"); // не задан → дефолт
   assert.equal(n.models.owner, "custom-own"); // переопределён продуктом
   assert.match(n.models.layer, /haiku/); // не задан → дефолт
+});
+
+test("пины моделей — АЛИАСЫ, не снапшоты с датой (BRAIN2-44)", () => {
+  const n = normalizeConfig({});
+  for (const [role, pin] of Object.entries(n.models)) {
+    assert.doesNotMatch(
+      pin,
+      /-\d{8}$/,
+      `${role}: снапшот с датой замораживает сессии — нужен алиас`,
+    );
+  }
+});
+
+test("сид и дефолты рамки объявляют ОДНИ пины (дубль обязан быть громким)", () => {
+  const seed = parseYaml(
+    readFileSync(join(HERE, "..", "harness", "harness.config.example.yaml"), "utf8"),
+  );
+  const framework = normalizeConfig({}).models;
+  assert.deepEqual(
+    seed.models,
+    framework,
+    "сид обещает «эти же значения применяются, если секцию убрать» — обещание обязано быть правдой",
+  );
 });
 
 // --- Резолв scope (config-driven) -------------------------------------------
@@ -267,12 +317,16 @@ test("currentAccess: env=main без marker (subagent) → commit-only, НЕ ful
 
 // --- scope-identity: баннер по роли (subprocess, config из cwd) --------------
 
-function runIdentity(scope) {
-  return execFileSync("node", [IDENTITY_HOOK], {
-    cwd: PRODUCT_FIXTURE,
-    env: { ...process.env, OMNIFIELD_SCOPE: scope },
-    encoding: "utf8",
-  });
+function runIdentity(scope, cwd = PRODUCT_FIXTURE) {
+  const env = { ...process.env };
+  if (scope === undefined) delete env.OMNIFIELD_SCOPE;
+  else env.OMNIFIELD_SCOPE = scope;
+  return execFileSync("node", [IDENTITY_HOOK], { cwd, env, encoding: "utf8" });
+}
+
+/** Текст баннера из ответа хука; хук не сказал ничего → null. */
+function bannerOf(raw) {
+  return JSON.parse(raw).hookSpecificOutput?.additionalContext ?? null;
 }
 
 test("identity: architect-баннер несёт роль, пин модели, число архитекторов", () => {
@@ -300,10 +354,84 @@ test("identity: неизвестный scope → UNRESOLVED-аномалия", (
 // --- онбординг: незаполненный сид (BRAIN2-8) ---------------------------------
 
 test("needsOnboarding: my-product/пусто → true; заданный продукт → false", () => {
-  assert.equal(needsOnboarding({ product: "my-product" }), true); // placeholder шаблона
+  assert.equal(needsOnboarding({ product: PLACEHOLDER_PRODUCT }), true); // placeholder шаблона
   assert.equal(needsOnboarding({ product: null }), true); // не задан
   assert.equal(needsOnboarding({ product: "baser" }), false); // заполнен под продукт
   assert.equal(needsOnboarding(cfg), false); // фикстура: product=acme
+});
+
+test("признак плейсхолдера — ОДИН на баннер и на доктора (не две копии)", () => {
+  assert.equal(needsOnboardingViaIdentity, needsOnboarding);
+});
+
+// --- BRAIN2-46: харнесс говорит о своём состоянии ----------------------------
+
+test("§1 доктор НЕ ставит зелёную галочку на плейсхолдер-конфиг", () => {
+  const out = report(PLACEHOLDER_FIXTURE, DOCTOR_URL);
+  assert.doesNotMatch(out, /✓ продукт: my-product/); // именно эта галочка и врала
+  assert.match(out, /ПЛЕЙСХОЛДЕР/);
+  assert.match(out, /ОНБОРДИНГ/);
+  // …а на заполненном конфиге галочка на месте
+  assert.match(report(PRODUCT_FIXTURE, DOCTOR_URL), /✓ продукт: acme/);
+});
+
+test("§2 zoneReality: чужой конфиг — зоны объявлены, на диске нет ни одной", () => {
+  const foreign = zoneReality(loadConfig(FOREIGN_FIXTURE), FOREIGN_FIXTURE);
+  assert.equal(foreign.declared, 2);
+  assert.equal(foreign.present, 0);
+  assert.equal(foreign.foreign, true);
+  // Здоровый репозиторий: все объявленные папки на месте → не чужой.
+  const own = zoneReality(cfg, PRODUCT_FIXTURE);
+  assert.equal(own.present, own.declared);
+  assert.equal(own.foreign, false);
+  // Зон нет вовсе — это «зон нет», а не «конфиг чужой».
+  assert.equal(zoneReality(normalizeConfig({}), PRODUCT_FIXTURE).foreign, false);
+});
+
+test("§2 баннер называет чужой конфиг чужим — ДО первого действия", () => {
+  const out = bannerOf(runIdentity("main", FOREIGN_FIXTURE));
+  assert.match(out, /НЕ ОТ ЭТОГО РЕПОЗИТОРИЯ/);
+  assert.match(out, /STOP/);
+  assert.match(out, /weber/); // чужой продукт назван
+  // Здоровая фикстура предупреждения не получает.
+  assert.doesNotMatch(bannerOf(runIdentity("main")), /НЕ ОТ ЭТОГО РЕПОЗИТОРИЯ/);
+});
+
+test("§2 предупреждение приезжает и owner-сессии, не только архитектору", () => {
+  assert.deepEqual(foreignConfigWarning(cfg, PRODUCT_FIXTURE), []);
+  const lines = foreignConfigWarning(loadConfig(FOREIGN_FIXTURE), FOREIGN_FIXTURE);
+  assert.ok(lines.length > 0);
+  assert.match(lines.join("\n"), /ни одна их папка здесь не/);
+});
+
+test("§2 доктор складывает отметки «папки нет» в один вывод", () => {
+  const out = report(FOREIGN_FIXTURE, DOCTOR_URL);
+  assert.match(out, /КОНФИГ, ПОХОЖЕ, НЕ ОТ ЭТОГО РЕПОЗИТОРИЯ/);
+  assert.match(out, /существует: 0/);
+});
+
+test("§3 без OMNIFIELD_SCOPE баннер ГОВОРИТ, а не молчит — с командой запуска", () => {
+  const out = bannerOf(runIdentity(undefined));
+  assert.ok(out, "хук промолчал — человек узнает о проблеме на первой правке");
+  assert.match(out, /РОЛИ НЕТ/);
+  assert.match(out, /OMNIFIELD_SCOPE=main\s+claude/); // готовая команда
+  assert.match(out, /OMNIFIELD_SCOPE=alpha\s+claude/); // и по зоне из ДАННЫХ конфига
+  assert.match(out, /STOP/);
+});
+
+test("§3 noScopeBanner перечисляет зоны конфига, а без зон — только main", () => {
+  assert.match(noScopeBanner(cfg), /Доступные scope: main, alpha, beta/);
+  const bare = noScopeBanner(normalizeConfig({}));
+  assert.match(bare, /OMNIFIELD_SCOPE=main\s+claude/);
+  assert.match(bare, /Зон в .* нет/);
+});
+
+test("§4 доктор описывает пересечение зон честно: не ошибка, а отсутствие границы", () => {
+  const out = report(OVERLAP_FIXTURE, DOCTOR_URL);
+  assert.doesNotMatch(out, /валидатор роль-модели: \d+ ошибок/); // больше не ошибка
+  assert.match(out, /машинной границы между ними НЕТ/);
+  assert.match(out, /законная раскладка/);
+  assert.match(out, /core.*core-ui|core-ui.*core/);
 });
 
 // --- доктор: регистрация хуков (цена класса placed-once, BRAIN2-41 §4) -------

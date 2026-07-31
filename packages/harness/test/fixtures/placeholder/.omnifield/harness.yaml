@@ -1,0 +1,10 @@
+# Фикстура BRAIN2-46 §1: сид доставлен, но не заполнен под продукт — `product` равен
+# плейсхолдеру нейтрального шаблона. Диагностика обязана видеть это так же, как баннер.
+apiVersion: omnifield.dev/v1
+kind: harness
+product: my-product
+architects: 1
+zones:
+  backend:
+    paths: [packages/backend]
+    description: серверная зона продукта
