@@ -1,6 +1,6 @@
 {
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "name": "@brainer/agent-harness-plugin",
+  "name": "@omnifield/brainer-harness",
   "projectType": "library",
   "targets": {
     "build": {

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// git-flow.mjs — agent-agnostic git-ИНСТРУМЕНТ (DEVOPSER-106). Managed-скрипт (как
-// devbox-services.mjs): вендорится в каждый репо, ЧИТАЕТ ВЕНДОРЕННЫЙ git-flow.json (managed-файл,
+// git-flow.mjs — agent-agnostic git-ИНСТРУМЕНТ (DEVOPSER-106). Managed-скрипт: вендорится
+// в каждый репо, ЧИТАЕТ ВЕНДОРЕННЫЙ git-flow.json (managed-файл,
 // DEVOPSER-113 — language-agnostic, любой стек, ноль npm) и делает полный луп git без ручных
 // команд. Zero-deps (node:* + шелл git/gh).
 //

@@ -1,10 +1,14 @@
 {
-  "$comment": "Managed-блок регистрации harness-хуков для .claude/settings.json. Source of truth того, что плагин ЗАРЕГИСТРИРУЕТ у потребителя (git-gate на PreToolUse; main-session-marker + scope-identity на SessionStart). Материализация — движковый mode:merge (JSON-aware deep-merge, @omnifield/skeleton@^0.8.0): НЕ перезапись пользовательского settings, наши hook-группы добавляются идемпотентно. Заведено в frame записью settings.hooks.json → .claude/settings.json (tasker:BRAIN-14, DEVOPSER-170 закрыт). Reference-спека merge-семантики — settings-block.mjs::mergeSettingsBlock (движок зеркалит поведение).",
+  "$comment": "Эталонный блок регистрации harness-хуков для .claude/settings.json — единственный источник правды о том, что обвес ЗАРЕГИСТРИРУЕТ у потребителя (git-gate + governance на PreToolUse; main-session-marker + scope-identity на SessionStart). git-gate режет git-запись по роли (Bash/PowerShell), governance режет ПРАВКУ файла вне зоны owner'а (Edit/Write/NotebookEdit, kb:BRAIN2-2). Раскладка кладёт этот файл в .claude/settings.json классом placed-once: settings.json — общий файл клиента (permissions, env, свои хуки), перегенерация снесла бы чужое. Цена класса названа вслух: регистрация НОВЫХ хуков следующих версий сама не приезжает — расхождение ловит и печатает готовой строкой harness-doctor.mjs (tasker:BRAIN2-41 §4).",
   "hooks": {
     "PreToolUse": [
       {
         "matcher": "Bash|PowerShell",
         "hooks": [{ "type": "command", "command": "node .claude/hooks/git-gate.mjs" }]
+      },
+      {
+        "matcher": "Edit|Write|NotebookEdit|MultiEdit",
+        "hooks": [{ "type": "command", "command": "node .claude/hooks/governance.mjs" }]
       }
     ],
     "SessionStart": [

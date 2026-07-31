@@ -1,0 +1,147 @@
+{
+  "version": 2,
+  "artifacts": [
+    {
+      "dest": ".claude/.gitignore",
+      "src": "gitignore.claude",
+      "source": "brainer/harness",
+      "version": "0.1.0",
+      "class": "regenerated",
+      "hash": "sha256:5e0dcdc18633d80ceec684ab3e35c80cd2480fccfd8f28ccfb4f014ebbf99476"
+    },
+    {
+      "dest": ".claude/agents/architect.md",
+      "src": "roles/architect.md",
+      "source": "brainer/harness",
+      "version": "0.1.0",
+      "class": "regenerated",
+      "hash": "sha256:79c411a704b9a9681d4d7693c0e5769732ae8cad2f6c7ba4b4565bdf8fb1a03f"
+    },
+    {
+      "dest": ".claude/agents/layer.md",
+      "src": "roles/layer.md",
+      "source": "brainer/harness",
+      "version": "0.1.0",
+      "class": "regenerated",
+      "hash": "sha256:baec561fd757bd5af823c9c2f0c113933698dd2a3545e453430280627dad44b4"
+    },
+    {
+      "dest": ".claude/agents/owner.md",
+      "src": "roles/owner.md",
+      "source": "brainer/harness",
+      "version": "0.1.0",
+      "class": "regenerated",
+      "hash": "sha256:7e0ddcb0aef28052a68668396b0bbba06435d8ffbc06ccdd83a88e4c0f026c0e"
+    },
+    {
+      "dest": ".claude/agents/research.md",
+      "src": "helpers/research.md",
+      "source": "brainer/harness",
+      "version": "0.1.0",
+      "class": "regenerated",
+      "hash": "sha256:c39849bc0f4ef7097e5748f4d8c5054dfe2e62527aee96b9e59ae194246b628e"
+    },
+    {
+      "dest": ".claude/agents/routine.md",
+      "src": "helpers/routine.md",
+      "source": "brainer/harness",
+      "version": "0.1.0",
+      "class": "regenerated",
+      "hash": "sha256:98fb016bdf4502627aaa0422aab2c34937ed40f916c440342a928f7f499de1cc"
+    },
+    {
+      "dest": ".claude/agents/shared-policy.md",
+      "src": "shared-policy.md",
+      "source": "brainer/harness",
+      "version": "0.1.0",
+      "class": "regenerated",
+      "hash": "sha256:44a92699b2fdc530f2e507c7127971c4fc2dc94681781cb0a7113bd8c67a80e3"
+    },
+    {
+      "dest": ".claude/hooks/git-gate.mjs",
+      "src": "hooks/git-gate.mjs",
+      "source": "brainer/harness",
+      "version": "0.1.0",
+      "class": "regenerated",
+      "hash": "sha256:c1d4eda1b74b8fc862fb467cd0368a18f77bb30977cbc367edc1827d31efeed7"
+    },
+    {
+      "dest": ".claude/hooks/governance.mjs",
+      "src": "hooks/governance.mjs",
+      "source": "brainer/harness",
+      "version": "0.1.0",
+      "class": "regenerated",
+      "hash": "sha256:4f376a45eae4d3ed2634b1670a6a677357acdaa4750fe2eb4543a89ca0be3a72"
+    },
+    {
+      "dest": ".claude/hooks/harness-config.mjs",
+      "src": "hooks/harness-config.mjs",
+      "source": "brainer/harness",
+      "version": "0.1.0",
+      "class": "regenerated",
+      "hash": "sha256:343ff613c9cdd64da22e6102f0f34ad36f465f0949f2fb34e652b676b7fae409"
+    },
+    {
+      "dest": ".claude/hooks/harness-doctor.mjs",
+      "src": "hooks/harness-doctor.mjs",
+      "source": "brainer/harness",
+      "version": "0.1.0",
+      "class": "regenerated",
+      "hash": "sha256:3523eb40025f981c64d90a98ca8bf4d88a026d24c71975fd04b91b5b117204f2"
+    },
+    {
+      "dest": ".claude/hooks/main-session-marker.mjs",
+      "src": "hooks/main-session-marker.mjs",
+      "source": "brainer/harness",
+      "version": "0.1.0",
+      "class": "regenerated",
+      "hash": "sha256:b78228b222303603b147c4deb68f06989878f1226438e4621a5d58dfc0ba70ee"
+    },
+    {
+      "dest": ".claude/hooks/scope-identity.mjs",
+      "src": "hooks/scope-identity.mjs",
+      "source": "brainer/harness",
+      "version": "0.1.0",
+      "class": "regenerated",
+      "hash": "sha256:eab14dbfbaa75c2ce70dfe014b7966472be8ed2f1ba56c7e82de81f4be245e49"
+    },
+    {
+      "dest": ".claude/hooks/scope-resolve.mjs",
+      "src": "hooks/scope-resolve.mjs",
+      "source": "brainer/harness",
+      "version": "0.1.0",
+      "class": "regenerated",
+      "hash": "sha256:1fa0e8fe47a8af9fabdbb738e445cbff739edb21bbacb277167c180ad3856820"
+    },
+    {
+      "dest": ".claude/settings.json",
+      "src": "settings.hooks.json",
+      "source": "brainer/harness",
+      "version": "0.1.0",
+      "class": "placed-once"
+    },
+    {
+      "dest": ".devcontainer/devcontainer-lock.json",
+      "src": "devcontainer-lock.json",
+      "source": "omnifield/devbox",
+      "version": "0.8.0",
+      "class": "regenerated",
+      "hash": "sha256:5ca0a1a0a1b7f1b4c09670946a9689a6b10fe50ee6ad0d699334bed98fce7012"
+    },
+    {
+      "dest": ".devcontainer/devcontainer.json",
+      "src": "devcontainer.json.ejs",
+      "source": "omnifield/devbox",
+      "version": "0.8.0",
+      "class": "regenerated",
+      "hash": "sha256:01ae151f787d9ff0d933c7ceaf321fabfd0488119331957adaf7c187ea857f40"
+    },
+    {
+      "dest": ".omnifield/harness.yaml",
+      "src": "harness.config.example.yaml",
+      "source": "brainer/harness",
+      "version": "0.1.0",
+      "class": "placed-once"
+    }
+  ]
+}

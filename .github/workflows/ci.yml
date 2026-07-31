@@ -19,10 +19,19 @@ permissions:
   packages: read
 
 jobs:
-  # Node-контур — reusable devopser (skeleton D1): hygiene (sherif) + nx affected +
-  # drift-check вендоренных skeleton-копий. Тулчейн-пины — из нашего package.json.
+  # Node-контур — reusable devopser (skeleton D1): gitleaks + hygiene (sherif) + nx affected.
+  # Тулчейн-пины — из нашего package.json.
+  #
+  # drift-check ВЫКЛЮЧЕН на переходный период (штатный вход reusable, не обход): мы пилот
+  # cutover на baser-тулзы (tasker:BRAIN2-36), .devcontainer/ эмитит обвес @omnifield/baser-devbox,
+  # и skeleton его конфигами больше не управляет. Сверять их с эталоном skeleton нечем и незачем:
+  # чекер парсит артефакт как строгий JSON и падает на комментариях JSONC
+  # (`SyntaxError: Unexpected token '/'` — красный CI с 2026-07-26, не связан с содержимым правок).
+  # Вернуть в true, когда уход со skeleton завершён и сверять станет нечего.
   node:
     uses: omnifield/devopser/.github/workflows/node-ci.yml@main
+    with:
+      drift-check: false
 
   # Python-контур локальный: reusable python-ci появится need-driven — при втором
   # python-потребителе экосистемы (решение devopser briefs/consumer-brainer.md).
@@ -39,9 +48,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       # Версия uv — под required-version root pyproject.toml; CPython — из .python-version.
+      # Разъезд этих двух чисел = не «старая версия», а ОТКАЗ uv работать вообще
+      # (required-version self-enforcing): держать согласованными с pyproject и с
+      # объявлением девбокса (.omnifield/omnifield-devbox.yaml).
       - uses: astral-sh/setup-uv@v6
         with:
-          version: "0.11.x"
+          version: "0.12.x"
           enable-cache: true
       - name: Sync deps (uv + dev group)
         run: uv sync --dev

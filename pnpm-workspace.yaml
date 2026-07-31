@@ -2,6 +2,10 @@
 # project.json и в pnpm-workspace не входят (sherif: packages-without-package-json).
 packages:
   - packages/frontend
+  # Обвес агент-харнесса: node-пакет с собственными тестами, и он же — обвес, который
+  # этот репозиторий ставит на себя (догфуд, tasker:BRAIN2-17). В воркспейсе он затем,
+  # чтобы корень ссылался на него `workspace:*` до публикации в реестр.
+  - packages/harness
 
 # pnpm 10 блокирует postinstall-скрипты по умолчанию; разрешаем точечно.
 onlyBuiltDependencies:

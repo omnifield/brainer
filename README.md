@@ -10,7 +10,8 @@
 > `@omnifield/{skeleton,nx-preset,biome-preset}`, py-контур локальный (matrix backend+kernel);
 > тулчейн запинен (машина = cattle, канон commons toolchain-pins). Рабочее имя (sweep:
 > `brainer` в AI/софте плотно занят — вернёмся к публичному имени перед релизом).
-> Реализация — по брифам (`briefs/`).
+> Задачи и роадмап — в tasker (`tasker:BRAIN2-*`), решения и каноны — в knowledger
+> (`kb:BRAIN2-*`); локальных брифов не заводим.
 
 ## Ключевая идея — agent-as-provider
 
@@ -21,10 +22,11 @@ kernel-паттерн, что у Omnifield Writer → строим шов оди
 ## Раскладка (`packages/<name>/`, extract-ready)
 
 `packages/kernel` (шов) · `packages/orchestrator` (сессии+провайдеры+телеметрия) ·
-`packages/backend` (API) · `packages/frontend` (дашборд) · `content` (doc-эталоны, догфуд).
-`kernel`+`orchestrator` → позже в общий `engines`-репо.
+`packages/backend` (API) · `packages/bridge` (мост претрансляции) · `packages/frontend`
+(дашборд) · `packages/harness` (agent-harness плагин). Зоны и их границы — данные
+`.omnifield/harness.yaml`. `kernel`+`orchestrator` → позже в общий `engines`-репо.
 
 ## MVP — начинаем с интерфейса
 
-Мод `claude-code`: список/статус сессий · запуск · бриф · трек · стоп. Contract-first
-(фронт против мок-контракта → backend наполняет). См. `briefs/interface-mvp.md`.
+Мод `claude-code`: список/статус сессий · запуск · трек · стоп. Contract-first
+(фронт против мок-контракта → backend наполняет). Гайд пульта — `kb:BRAIN2-17`.

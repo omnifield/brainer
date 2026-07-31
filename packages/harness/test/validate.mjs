@@ -1,15 +1,19 @@
 #!/usr/bin/env node
-// validate.mjs — build/CI-гейт: материализует проверку plugin-бандла против контракта
-// (kb:DEVOPSER-6) без тест-раннера. Печатает результат, exit 1 при любой ошибке.
+// validate.mjs — build/CI-гейт: объявление обвеса (`package.json.baser`) валидно против формы
+// baser и полно против раскладки этого обвеса. Без тест-раннера. Печатает результат, exit 1
+// при любой ошибке. Авторитетная проверка формы — `npx baser check packages/harness`.
 
 import { validatePackage } from "./contract.lib.mjs";
 
-const { errors, npmOmni } = validatePackage();
+const { errors, pkg, baser } = validatePackage();
 if (errors.length) {
-  process.stderr.write(`✗ plugin-контракт НАРУШЕН:\n${errors.map((e) => `  - ${e}`).join("\n")}\n`);
+  process.stderr.write(
+    `✗ объявление обвеса НЕПРИГОДНО:\n${errors.map((e) => `  - ${e}`).join("\n")}\n`,
+  );
   process.exit(1);
 }
+const placedOnce = baser.layout.filter((f) => f.class === "placed-once").length;
 process.stdout.write(
-  `✓ @brainer/agent-harness-plugin: omnifield-блок валиден (target=${npmOmni.target}, ` +
-    `${npmOmni.frame.length} frame-записей, дуальная доставка консистентна)\n`,
+  `✓ ${pkg.name}@${pkg.version}: объявление валидно (обвес ${baser.source.id}, форма ` +
+    `${baser.formVersion}, ${baser.layout.length} записей раскладки — ${placedOnce} placed-once)\n`,
 );

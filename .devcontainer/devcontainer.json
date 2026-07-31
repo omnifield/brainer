@@ -1,37 +1,71 @@
-// Расширение init-шаблона skeleton 0.2.2 (не drift-managed) под brainer —
-// devopser/briefs/container-sessions-brainer.md (пересадка: контейнер = дефолт).
-// Канон: рабочая копия в WSL2 FS (bind-mount), node_modules-overlay снят (П3 —
-// был транзишен-мерой для NTFS-клона).
 {
-  "name": "omnifield-devbox",
-  "image": "ghcr.io/omnifield/devbox:v2026.07.10",
-  "remoteUser": "vscode",
-  "mounts": [
-    "source=omnifield-pnpm-store,target=/home/vscode/.local/share/pnpm/store,type=volume",
-    // Секрет-дизайн 0.2.2: ОДИН машинный volume, тулзы наведены env'ами ниже;
-    // занос кредов — devbox/README §Пост-шаги (один раз на машину).
-    "source=omnifield-secrets,target=/home/vscode/.secrets,type=volume"
+  // brainer-devbox — Ф2 (kb:ADR-16 volume-workspace, kb:FUND-4 containers-only).
+  // ГРИНФИЛД на стандартном Dev Containers (adopt-not-invent, kb:ADR-20): upstream-образ +
+  // features + native "Clone Repository in Container Volume". БЕЗ skeleton-скриптов
+  // (devbox.sh/-manifest/-session/-services) и БЕЗ biome/GH-Packages — это devopser-legacy.
+  // Docker-инварианты канон-чистого девбокса сохранены (kb:DEVOPSER-3).
+  "name": "brainer-devbox",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:24",
+  "remoteUser": "node",
+
+  // Канон-чистые инварианты (kb:DEVOPSER-3): peer-alias в общей сети omnifield-gateway
+  // (видят tasker/knowledger по имени), host-gateway, НОЛЬ host-портов (single-origin —
+  // наружу только дверь :8080; verdaccio :4873 остаётся внутренним), контейнер переживает
+  // рестарт демона.
+  "runArgs": [
+    "--network=omnifield-gateway",
+    "--network-alias=brainer",
+    "--add-host=host.docker.internal:host-gateway",
+    "--restart=unless-stopped"
   ],
+
+  // Переменные окружения контейнера: секрет-модель, адрес pnpm-стора, продуктовые переменные.
+  // Секрет-модель (kb:FUND-4): креды/кэши — в named-volume'ах, ENV указывает в /home/node/.secrets.
+  // Ничего не хардкодим в образ/репо; тома переживают recreate.
+  // Стор pnpm назван ДВУМЯ именами, и это не дубль: до pnpm 11 он читает npm-конфиг
+  // (NPM_CONFIG_*), с 11-й — свой (PNPM_CONFIG_*). Без них при воркспейсе-томе pnpm
+  // кладёт стор рядом с воркспейсом, а смонтированный том стоит нетронутым.
   "containerEnv": {
-    "CLAUDE_CONFIG_DIR": "/home/vscode/.secrets/claude",
-    "NPM_CONFIG_USERCONFIG": "/home/vscode/.secrets/npmrc",
-    "GIT_CONFIG_GLOBAL": "/home/vscode/.secrets/gitconfig",
-    "GH_CONFIG_DIR": "/home/vscode/.secrets/gh",
-    // Хостовые сервисы ИЗ контейнера: localhost тут = контейнер, поэтому OTEL-коллектор
-    // хоста (:4317) — через host.docker.internal. Backend инжектит этот URL спавнутым
-    // claude-scope-сессиям (app/config.py → adapters/claude_code.py).
+    "CLAUDE_CONFIG_DIR": "/home/node/.secrets/claude",
+    "GIT_CONFIG_GLOBAL": "/home/node/.secrets/gitconfig",
+    "GH_CONFIG_DIR": "/home/node/.secrets/gh",
+    "NPM_CONFIG_USERCONFIG": "/home/node/.secrets/npmrc",
+    "NPM_CONFIG_STORE_DIR": "/home/node/.pnpm-store",
+    "PNPM_CONFIG_STORE_DIR": "/home/node/.pnpm-store",
     "BRAINER_OTEL_ENDPOINT": "http://host.docker.internal:4317"
   },
-  "postCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.local/share/pnpm/store /home/vscode/.secrets && (timeout 20 npm whoami --registry=https://npm.pkg.github.com >/dev/null 2>&1 || { echo '✖ npm.pkg.github.com: нет валидного PAT в $NPM_CONFIG_USERCONFIG (секрет-volume omnifield-secrets) — @omnifield-пакеты не встанут. Занос кредов: devbox/README §Пост-шаги'; exit 1; }) && pnpm install",
 
-  // Наружу с хоста: backend (uvicorn :8010) + frontend (vite :3500) — внутренние
-  // targets gateway (single-origin, DEPLOY.md); в UX — только gateway :8080.
-  // ⚠️ devcontainer-CLI forwardPorts НЕ публикует (подсказка IDE) — для CLI-пути
-  // appPort / docker run -p (devbox/README §Роль-сессии; scripts/devbox-session.sh).
-  "forwardPorts": [8010, 3500],
-  "appPort": [8010, 3500],
+  // Фичи Dev Containers — настройка devcontainerFeatures. Базовый образ несёт node/pnpm/git
+  // (версия pnpm — из пина самого репозитория через corepack; образ = тонкая оболочка),
+  // остальные тулчейны приезжают сюда: чего тут нет, того в девбоксе нет, и постсоздание
+  // говорит об этом вслух, если репозиторий тулчейн объявил.
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/va-h/devcontainers-features/uv:1": {"version":"0.12"}
+  },
 
-  // Docker Desktop даёт host.docker.internal из коробки; add-host покрывает голый
-  // docker-engine (host-gateway) — «для чистоты» из ревью.
-  "runArgs": ["--add-host=host.docker.internal:host-gateway"]
+  // Общие на машине named-volume'ы (одни креды/стор на все omnifield-девбоксы), переживают recreate.
+  // Workspace-ТОМ здесь НЕ объявляем: им управляет "Clone Repository in Container Volume"
+  // (kb:ADR-16) — VS Code сам создаёт том, клонирует репо, монтирует как workspace. См. runbook.
+  "mounts": [
+    "source=omnifield-secrets,target=/home/node/.secrets,type=volume",
+    "source=omnifield-pnpm-store,target=/home/node/.pnpm-store,type=volume"
+  ],
+
+  "customizations": {
+    "vscode": {
+      // Расширения и форматтер — настройки обвеса. Дополняют .vscode/extensions.json репо.
+      "extensions": [],
+      "settings": {
+        "typescript.tsdk": "node_modules/typescript/lib"
+      }
+    }
+  },
+
+  // Одноразовая (per-volume) настройка: corepack→pnpm-пин + глобальный ассистент
+  // (kb:FUND-4 — исполнение/ассистент живут В контейнере, не на хосте).
+  "onCreateCommand": "sudo corepack enable && npm install -g @anthropic-ai/claude-code@latest",
+
+  // Репо-зависимая настройка: названные потери тулчейна, права на общие тома, seed claude-онбординга, проверка доступа к реестру, установка зависимостей.
+  "postCreateCommand": "( lost=; if { [ -f uv.lock ] || grep -qs '^\\[tool.uv\\]' pyproject.toml; } && ! { command -v uv >/dev/null 2>&1; }; then printf '%s\\n' '[devbox] Репозиторий объявляет uv (uv.lock, [tool.uv] в pyproject.toml), а команды uv в девбоксе нет.' >&2; lost=1; fi; if { { [ -f .python-version ] || [ -f pyproject.toml ]; } && ! { [ -f uv.lock ] || grep -qs '^\\[tool.uv\\]' pyproject.toml; }; } && ! { command -v python >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1; }; then printf '%s\\n' '[devbox] Репозиторий объявляет питон (.python-version, pyproject.toml), а ни одной из команд python, python3 в девбоксе нет.' >&2; lost=1; fi; if { [ -f go.mod ]; } && ! { command -v go >/dev/null 2>&1; }; then printf '%s\\n' '[devbox] Репозиторий объявляет go (go.mod), а команды go в девбоксе нет.' >&2; lost=1; fi; if [ -n \"$lost\" ]; then printf '%s\\n' '[devbox] Девбокс НОДОВЫЙ: базовый образ несёт node/pnpm/git, остальные тулчейны приезжают фичами Dev Containers.' '[devbox] Добавь нужные настройкой devcontainerFeatures в файле настроек девбокса и пересоздай контейнер.' '[devbox] Каталог фич: https://containers.dev/features' '[devbox] Пока их нет — таргеты этого тулчейна упадут, и обычно первым же git commit.' >&2 ; fi ) && sudo chown -R node:node /home/node/.secrets /home/node/.pnpm-store && mkdir -p \"$CLAUDE_CONFIG_DIR\" && { [ -f \"$CLAUDE_CONFIG_DIR/.claude.json\" ] || printf '%s\\n' '{\"hasCompletedOnboarding\":true,\"hasTrustDialogAccepted\":true,\"theme\":\"dark\"}' > \"$CLAUDE_CONFIG_DIR/.claude.json\"; } && ( reg=$(npm config get @omnifield:registry); case \"$reg\" in http*) ;; *) printf '%s\\n' '[devbox] Пакеты @omnifield/* тянутся из приватного реестра, а он не настроен.' '[devbox] Установка пойдёт в npmjs.org и ответит «404, пакета нет» — хотя пакет есть, нет доступа.' '[devbox] Настрой доступ в /home/node/.secrets/npmrc — том, переживает пересоздание контейнера:' '[devbox]   npm config set @omnifield:registry <адрес-реестра> --location=user' '[devbox]   npm config set //<хост-реестра>/:_authToken <токен> --location=user' >&2 ; exit 1;; esac; h=${reg#*://}; h=${h%/}; npm whoami --registry=\"$reg\" --fetch-retries=0 >/dev/null 2>&1 || { printf '%s\\n' '[devbox] Реестр для @omnifield настроен, а доступа к нему нет: токен не положен или протух.' \"[devbox]   реестр: $reg\" \"[devbox]   проверка руками: npm whoami --registry=$reg\" '[devbox] Положи токен в /home/node/.secrets/npmrc — том, переживает пересоздание контейнера:' \"[devbox]   npm config set //$h/:_authToken <токен> --location=user\" >&2 ; exit 1; } ) && pnpm install --frozen-lockfile"
 }

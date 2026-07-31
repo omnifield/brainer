@@ -1,9 +1,10 @@
 # uv workspace root (virtual — не пакет). Канон: commons toolchain-pins.
-# kernel/orchestrator станут members при extract (см. briefs/repo-skeleton.md шаг 4).
+# bridge/kernel пока вне workspace и потому собирают свой venv на системном питоне —
+# разъезд разбирается в tasker:BRAIN2-22 (один интерпретатор на репо).
 
 [tool.uv]
 # Пин самого uv — self-enforcing (escalation-toolchain-pins §1).
-required-version = ">=0.11,<0.12"
+required-version = ">=0.12,<0.13"
 
 [tool.uv.workspace]
 members = ["packages/backend"]

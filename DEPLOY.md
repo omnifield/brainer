@@ -2,8 +2,7 @@
 
 ## Принципы (канон)
 
-1. **Containers-only** (фундамент user 2026-07-10, devopser
-   `briefs/containers-only-and-management.md`): на машине — только Docker и
+1. **Containers-only** (фундамент user 2026-07-10, канон `kb:FUND-4`): на машине — только Docker и
    файлы. Backend, frontend и claude-сессии (их спавнит backend; claude CLI +
    креды живут в секрет-volume) исполняются в devbox-контейнере. Хост-путь —
    легаси (чекпойнт `container-sessions-default`).
@@ -17,19 +16,18 @@
 
 ## Запуск (dev)
 
+Всё — **в терминале devbox-контейнера** (VS Code → Reopen in Container; рабочая копия в томе,
+`/workspaces/brainer`). Хостового шелла тут нет и не нужно: `docker` внутри контейнера
+отсутствует, gateway-стек поднимается снаружи один раз.
+
 ```sh
-# из WSL-шелла (Ubuntu), рабочая копия ~/omnifield/brainer
-cd ~/omnifield/brainer
+# 1. gateway-стек devopser поднят снаружи (одна команда их README, живёт постоянно)
 
-# 1. gateway-стек devopser поднят (одна команда их README, живёт постоянно)
+# 2. backend
+cd packages/backend && uv run uvicorn app.main:app --host 0.0.0.0 --port 8010
 
-# 2. backend (в контейнере)
-./scripts/devbox-session.sh main bash -c \
-  'cd packages/backend && uv run uvicorn app.main:app --host 0.0.0.0 --port 8010'
-
-# 3. frontend (в контейнере)
-./scripts/devbox-session.sh main bash -c \
-  'cd packages/frontend && pnpm dev --host 0.0.0.0'
+# 3. frontend (второй терминал)
+cd packages/frontend && pnpm dev --host 0.0.0.0
 ```
 
 Открываешь `http://localhost:8080/brainer/` — дашборд на реальном backend'е
