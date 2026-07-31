@@ -12,11 +12,11 @@ importers:
         specifier: ^2.5.3
         version: 2.5.3
       '@omnifield/baser-cli':
-        specifier: ^0.0.3
-        version: 0.0.3(@nx/devkit@23.1.0(nx@23.0.1))
+        specifier: ^0.0.4
+        version: 0.0.4(@nx/devkit@23.1.0(nx@23.0.1))
       '@omnifield/baser-devbox':
-        specifier: ^0.6.0
-        version: 0.6.0
+        specifier: ^0.8.0
+        version: 0.8.0
       '@omnifield/biome-preset':
         specifier: ^0.1.1
         version: 0.1.1
@@ -494,26 +494,26 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@omnifield/baser-check@0.0.2':
-    resolution: {integrity: sha512-S1cbQjcSutBqdDSymf3iqywt+z/bUQzdoFNt3SwUCP4mIA/vtqH2I1VF1UqjHVrovS9JzjyOxKxmTOiQp8WsLg==, tarball: https://npm.pkg.github.com/download/@omnifield/baser-check/0.0.2/edb7c2fde69e8868af1c09c2a9952f17b4e963f5}
+  '@omnifield/baser-check@0.0.3':
+    resolution: {integrity: sha512-VwAVbQJgNtadsgKlBjexuCZe7hZCiI4xxr4PxOd9hjhCAco7W4IvTAkUWVH+JVnMAdMpnrgL6wZp1s5D+bllyw==, tarball: https://npm.pkg.github.com/download/@omnifield/baser-check/0.0.3/802897627a2afc6294aa1818f9855e5f5efcdcfe}
 
-  '@omnifield/baser-cli@0.0.3':
-    resolution: {integrity: sha512-wu8FW7dBamUBtY4AnL6RSIfE0/ilMqIcfxXmn4LKzC+LuqbRXnX71Hgb/C7KJDNZKzToKa1ltnUbza+Dm243PA==, tarball: https://npm.pkg.github.com/download/@omnifield/baser-cli/0.0.3/38fb9b2e68d8010357f9b25357c535d509bd2423}
+  '@omnifield/baser-cli@0.0.4':
+    resolution: {integrity: sha512-Q1Ud6VGafhSntSyFUF/CAosQWWtVNAZkpgBQ3DlBywiN6YXLCCPN8W/TOpeFSIlF0Dtp5eOGlni9VM5NmQExBA==, tarball: https://npm.pkg.github.com/download/@omnifield/baser-cli/0.0.4/9cb809a988de6df5fddd4aa94f8acec442abe88b}
     hasBin: true
 
-  '@omnifield/baser-contracts@0.0.2':
-    resolution: {integrity: sha512-O0MXgmEl2fyrqy1NyyPGK3FvB4qi7fFxmsix7XQK5aAjFrOArN1Xlj8rXaXk+oU2lrBCb1am7p5BkncCbkXkaw==, tarball: https://npm.pkg.github.com/download/@omnifield/baser-contracts/0.0.2/f95695c95bda8c0df09296547ef482e47e153d9b}
+  '@omnifield/baser-contracts@0.1.0':
+    resolution: {integrity: sha512-Z5WpCs+/c5BUp7cJeYG0RDXGyuNa/Tdb0yTKiK+GVV3XOJIx3/hJb+TTS/1iN+q7UwyG2WHSKK+xexBrPiX+oA==, tarball: https://npm.pkg.github.com/download/@omnifield/baser-contracts/0.1.0/4771873d337ec293df66f4a7b8f9b34328c049c6}
 
-  '@omnifield/baser-devbox@0.6.0':
-    resolution: {integrity: sha512-oJ1P896xzBb/Mthv4+nTaY4hy2H0FYq15bDrjaiWim65mmW+ahSRUa3alkkM9j1udM1ccPvkjaWWXtMggAS8JQ==, tarball: https://npm.pkg.github.com/download/@omnifield/baser-devbox/0.6.0/0a9fc59642c4912046a3f1f21ab6a75eb008d72a}
+  '@omnifield/baser-devbox@0.8.0':
+    resolution: {integrity: sha512-6nCnTqy8D45g7tjcoph/+ZEkLgcbsTgbVpy2fqW1oeWECrSp8qwy5muxYwxLlJOvO2ygoUZpLm5hALuiYJ5dbw==, tarball: https://npm.pkg.github.com/download/@omnifield/baser-devbox/0.8.0/602cb7c7c7bd75100a512ea52ba2da8aa02bcb14}
 
   '@omnifield/baser-materialize@0.0.2':
     resolution: {integrity: sha512-WO8N/s+xHUu6y/SzQVfXjRebgg/dz8bINwSbKod9HEDgnrReOZgnbC/L9KKN6UF7GRzE2xyROLz1qQbAAuSjsg==, tarball: https://npm.pkg.github.com/download/@omnifield/baser-materialize/0.0.2/c902934ddb8dbf4b581242052533528b64de2705}
     peerDependencies:
       '@nx/devkit': ^23.0.0
 
-  '@omnifield/baser-pack@0.0.2':
-    resolution: {integrity: sha512-EmxRFAOfidkZQPkguqx0igwurUmoS4VDf71/8xAjREeZOvMtZioiqYOBu3TWm5gX0fBUohqFnwxQC1vGOWECZQ==, tarball: https://npm.pkg.github.com/download/@omnifield/baser-pack/0.0.2/3fbca02fdaf48e1532e2bf95e12213073aa764a4}
+  '@omnifield/baser-pack@0.0.3':
+    resolution: {integrity: sha512-/fpSIB4k7mcoLsEWXkA7B0up8bObvqrznddeBWM6d1M8c7rU6AmlmuOI0Gfoo1r+5eMR8YZhOwW5pleQk0ongw==, tarball: https://npm.pkg.github.com/download/@omnifield/baser-pack/0.0.3/437c3ebea015df25cc3e7e74d74c4310a26d1759}
 
   '@omnifield/biome-preset@0.1.1':
     resolution: {integrity: sha512-QvUY3puHngrYEW7HtVc0pWpek70qfksuebROY3JEOURh8Z2HgJK9UdyzZdeiXKZuLy7UqLZg7prcbfLc2dVZUw==, tarball: https://npm.pkg.github.com/download/@omnifield/biome-preset/0.1.1/6aa7022388fca36645c59148cda8de7b46675066}
@@ -2083,38 +2083,38 @@ snapshots:
   '@nx/nx-win32-x64-msvc@23.0.1':
     optional: true
 
-  '@omnifield/baser-check@0.0.2':
+  '@omnifield/baser-check@0.0.3':
     dependencies:
-      '@omnifield/baser-contracts': 0.0.2
+      '@omnifield/baser-contracts': 0.1.0
       tslib: 2.8.1
 
-  '@omnifield/baser-cli@0.0.3(@nx/devkit@23.1.0(nx@23.0.1))':
+  '@omnifield/baser-cli@0.0.4(@nx/devkit@23.1.0(nx@23.0.1))':
     dependencies:
-      '@omnifield/baser-check': 0.0.2
-      '@omnifield/baser-contracts': 0.0.2
+      '@omnifield/baser-check': 0.0.3
+      '@omnifield/baser-contracts': 0.1.0
       '@omnifield/baser-materialize': 0.0.2(@nx/devkit@23.1.0(nx@23.0.1))
-      '@omnifield/baser-pack': 0.0.2
+      '@omnifield/baser-pack': 0.0.3
       ejs: 5.0.1
       tslib: 2.8.1
       yaml: 2.9.0
     transitivePeerDependencies:
       - '@nx/devkit'
 
-  '@omnifield/baser-contracts@0.0.2':
+  '@omnifield/baser-contracts@0.1.0':
     dependencies:
       tslib: 2.8.1
 
-  '@omnifield/baser-devbox@0.6.0': {}
+  '@omnifield/baser-devbox@0.8.0': {}
 
   '@omnifield/baser-materialize@0.0.2(@nx/devkit@23.1.0(nx@23.0.1))':
     dependencies:
       '@nx/devkit': 23.1.0(nx@23.0.1)
       tslib: 2.8.1
 
-  '@omnifield/baser-pack@0.0.2':
+  '@omnifield/baser-pack@0.0.3':
     dependencies:
-      '@omnifield/baser-check': 0.0.2
-      '@omnifield/baser-contracts': 0.0.2
+      '@omnifield/baser-check': 0.0.3
+      '@omnifield/baser-contracts': 0.1.0
       tslib: 2.8.1
 
   '@omnifield/biome-preset@0.1.1': {}

@@ -14,3 +14,21 @@ baser:
     # .vscode/ репо рулит сам (null = ни formatOnSave, ни чужих расширений).
     editorFormatter: null
     editorExtensions: []
+    # Полиглот: корень объявляет питон (.python-version 3.12, pyproject [tool.uv], uv.lock),
+    # зоны backend/bridge/kernel гоняют lint:py/test:py командой `uv run`. Upstream-образ
+    # тулчейна не несёт — до 0.7.0 это валило коммит-каденс целиком (tasker:BASER2-109).
+    # Карта ЗАМЕНЯЕТ дефолт обвеса целиком → github-cli (нужен git-flow) держим явно.
+    # Отдельная python-фича НЕ нужна: uv сам поднимет CPython по .python-version — один
+    # источник версии питона вместо двух расходящихся.
+    # version у uv — ПИН ТУЛЧЕЙНА, а не косметика: pyproject.toml пинует uv self-enforcing
+    # (required-version), и разъезд с ним = отказ uv работать вообще. Держать эти два числа
+    # согласованными. 0.12 — не пример из письма: на нём прогнаны все три py-зоны
+    # (ruff чист, backend 54 passed), пин репо поднят по этому факту (tasker:BASER2-114).
+    devcontainerFeatures:
+      "ghcr.io/devcontainers/features/github-cli:1": {}
+      "ghcr.io/va-h/devcontainers-features/uv:1":
+        version: "0.12"
+    # Трейсы (POLICY DoD): адрес коллектора продукта. Потерян переездом на обвес, назван
+    # в gaps BRAIN2-13, возвращён настройкой в 0.7.0.
+    extraContainerEnv:
+      BRAINER_OTEL_ENDPOINT: http://host.docker.internal:4317

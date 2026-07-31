@@ -42,8 +42,9 @@ git:
 grabli:
   workspace: GRABLI2
 
-# Слот services (BRAIN2-9): доступ curl'ом (НЕ MCP). Из ЭТОГО devbox работает дверь через хост
-# (соседи :8030/:8040 отсюда недоступны). Сэндбокс Bash режет сеть → curl с сэндбоксом off.
+# Слот services (BRAIN2-9): доступ curl'ом (НЕ MCP). С переезда в omnifield-gateway (BRAIN2-11,
+# этап 8) devbox — peer сети: соседи видны ПО ИМЕНИ напрямую. Дверь через хост
+# (host.docker.internal:8080/api/*) ещё отвечает, но это обход — канон-путь peer-to-peer.
 services:
-  tasker: http://host.docker.internal:8080/api/tasker
-  knowledger: http://host.docker.internal:8080/api/knowledger
+  tasker: http://tasker:8030/tasker
+  knowledger: http://knowledger:8040/knowledger
