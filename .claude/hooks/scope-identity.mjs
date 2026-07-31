@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // scope-identity.mjs — SessionStart hook: инжектит identity-баннер по OMNIFIELD_SCOPE.
 // Роль-модель (зоны/пины моделей/число архитекторов) — ДАННЫЕ из `.omnifield/harness.yaml`
-// (kb:BRAIN-3), НЕ хардкод. Роли-рамка (инварианты) — .claude/agents/{architect,owner,layer}.md.
+// (kb:BRAIN2-12), НЕ хардкод. Роли-рамка (инварианты) — .claude/agents/{architect,owner,layer}.md.
 //   - 'main'         → architect;  <zone> → owner-<zone>;  пусто → no-op;  невалид → anomaly.
 //
 // Contract (SessionStart): stdout { hookSpecificOutput: { hookEventName, additionalContext } }.

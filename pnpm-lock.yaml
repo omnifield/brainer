@@ -20,6 +20,9 @@ importers:
       '@omnifield/biome-preset':
         specifier: ^0.1.1
         version: 0.1.1
+      '@omnifield/brainer-harness':
+        specifier: workspace:*
+        version: link:packages/harness
       '@omnifield/nx-preset':
         specifier: ^0.1.3
         version: 0.1.3
@@ -69,6 +72,8 @@ importers:
       vitest:
         specifier: ^3.2.4
         version: 3.2.7(jsdom@26.1.0)(yaml@2.9.0)
+
+  packages/harness: {}
 
 packages:
 
