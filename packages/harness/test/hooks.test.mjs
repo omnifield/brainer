@@ -8,7 +8,12 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { blockReason, currentAccess } from "../harness/hooks/git-gate.mjs";
+import {
+  blockReason,
+  currentAccess,
+  gitInvocations,
+  stripHeredocBodies,
+} from "../harness/hooks/git-gate.mjs";
 import {
   DEFAULT_CONFIG,
   gitAccess,
@@ -286,6 +291,105 @@ test("none (layer): режет ещё и commit/add", () => {
 test("full: пускает всё", () => {
   assert.equal(blockReason("git push --force", "full"), null);
   assert.equal(blockReason("git merge x", "full"), null);
+});
+
+// --- BRAIN2-49: гейт смотрит на исполняемую команду, а не на подстроку -------
+
+const PY_PAYLOAD = [
+  "python3 - <<'PY'",
+  "body = '''Правило: ветку заводит architect — git checkout -b тебе режет гейт.",
+  "Пуш и мерж тоже не твои: git push и git merge — за ним.'''",
+  "print(body)",
+  "PY",
+].join("\n");
+
+test("упоминание git-команды в ДАННЫХ не блокируется", () => {
+  // Ровно тот случай, на котором грабля поймана: тело heredoc уезжает в stdin питона.
+  assert.equal(blockReason(PY_PAYLOAD, "commit-only"), null);
+  assert.equal(blockReason(PY_PAYLOAD, "none"), null);
+  assert.equal(blockReason("echo 'git push'", "commit-only"), null);
+  assert.equal(
+    blockReason('curl -d "git push origin main" http://tasker:8030/x', "commit-only"),
+    null,
+  );
+  assert.equal(blockReason("node -e 'console.log(\"git merge\")'", "commit-only"), null);
+});
+
+test("своё же сообщение коммита про git push не блокирует коммит", () => {
+  assert.equal(
+    blockReason('git commit -m "объясняю, почему git push не наш"', "commit-only"),
+    null,
+  );
+  // а для layer коммит всё равно закрыт — по verb'у, а не по тексту сообщения
+  assert.equal(blockReason('git commit -m "текст"', "none"), "git commit");
+});
+
+test("настоящая git-запись режется, как бы её ни завернули", () => {
+  const cases = [
+    ["git push", "git push"],
+    ["git 'push'", "git push"], // кавычка вокруг verb'а — не щель
+    ['git "push" origin main', "git push"],
+    ["/usr/bin/git push", "git push"],
+    ["FOO=bar git push", "git push"],
+    ["cd packages/harness && git push", "git push"],
+    ["git -C /repo --no-pager push", "git push"],
+    ["bash -c 'git push'", "git push"], // интерпретатор — сеть грубее, дверь закрыта
+    ["env -u OMNIFIELD_SCOPE git push", "git push"],
+    ["sudo git push", "git push"],
+    ['echo "$(git push)"', "git push"], // подстановка исполняется
+    ["echo `git merge x`", "git merge"],
+    ["bash <<'EOF'\ngit push\nEOF", "git push"], // heredoc ЧИТАЕТ интерпретатор → это программа
+  ];
+  for (const [cmd, label] of cases) {
+    assert.equal(blockReason(cmd, "commit-only"), label, `не заблокировано: ${cmd}`);
+  }
+});
+
+test("не разобрали строку → грубая сеть, а не пропуск (fail-safe в закрытую дверь)", () => {
+  assert.equal(blockReason("echo 'git push", "commit-only"), "git push"); // кавычка не закрыта
+});
+
+test("gitInvocations: сегмент чужой команды игнорится целиком, git-вызов разбирается", () => {
+  assert.deepEqual(gitInvocations("echo 'git push'"), []);
+  const [call] = gitInvocations("git -C /repo checkout -b feat");
+  assert.equal(call.tool, "git");
+  assert.equal(call.verb, "checkout");
+  assert.deepEqual(call.args, ["-b", "feat"]);
+});
+
+test("stripHeredocBodies: тело для питона вырезано, для интерпретатора сохранено", () => {
+  assert.doesNotMatch(stripHeredocBodies(PY_PAYLOAD), /checkout/);
+  assert.match(stripHeredocBodies("bash <<'EOF'\ngit push\nEOF"), /git push/);
+});
+
+test("граница «что считается git-записью» не сдвинулась", () => {
+  // Полный набор запретов до и после переписывания распознавания — тот же.
+  const commitOnly = [
+    "git switch x",
+    "git checkout -b x",
+    "git push",
+    "git merge x",
+    "git rebase x",
+    "git reset --hard",
+    "git branch -D x",
+    "git worktree add d",
+    "gh pr create",
+  ];
+  for (const cmd of commitOnly)
+    assert.ok(blockReason(cmd, "commit-only"), `должно резаться: ${cmd}`);
+  const stillAllowed = [
+    "git status",
+    "git add .",
+    "git commit -m x",
+    "git diff",
+    "git log",
+    "git checkout -- file.txt",
+    "git reset --soft HEAD~1",
+    "git branch -a",
+    "gh pr view",
+  ];
+  for (const cmd of stillAllowed)
+    assert.equal(blockReason(cmd, "commit-only"), null, `не должно: ${cmd}`);
 });
 
 // --- git-gate: уровень доступа сессии ----------------------------------------
