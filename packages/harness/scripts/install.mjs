@@ -1,25 +1,26 @@
 #!/usr/bin/env node
-// install.mjs — РУЧНАЯ установка agent-harness-плагина в целевой репо (метод #1, без
-// публикации/движка devopser). Читает frame из plugin.json (тот же контракт, что движок
-// материализует вслепую) и раскладывает контент по `.claude/` / `.omnifield/` цели.
+// install.mjs — РУЧНАЯ установка агент-харнесса в целевой репо (метод #1, без станка baser).
+// Читает объявление обвеса из `package.json.baser` (то же самое, что разбирает дверь) и
+// раскладывает содержимое по `.claude/` / `.omnifield/` цели.
 //
 //   node install.mjs [<target-repo>]        # по умолчанию — cwd
 //   node install.mjs --dry-run [<target>]   # показать, что сделает, без записи
 //
-// Режимы frame[].mode:
-//   exact — перезаписать dest содержимым src (managed-рамка).
-//   seed  — создать dest ТОЛЬКО если его нет (продукт заполняет сам; не трогаем существующий).
-//   merge — JSON deep-merge src в существующий dest (или создать) — для .claude/settings.json.
+// Классы артефакта (форма baser §5б) — исполняем их ЧЕСТНО, а не «как удобнее ручному методу»:
+//   regenerated — артефакт наш, кладём целиком заново;
+//   placed-once — кладём, только если места пусто; дальше файл ведёт человек и мы его не трогаем.
+// Режимов материализации у формы нет: `merge` отменён вместе со сведением версий. Поэтому
+// существующий `.claude/settings.json` мы НЕ дописываем — вместо этого называем расхождение
+// вслух и печатаем готовую строку, которую нужно дописать (tasker:BRAIN2-41 §4).
 //
-// Zero-deps (node:*). Идемпотентно: повторный запуск — no-op на exact/merge, seed не трогает.
+// Zero-deps (node:*). Идемпотентно: повторный прогон — no-op на regenerated, placed-once не трогает.
 
-import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { argv } from "node:process";
-import { fileURLToPath } from "node:url";
-import { mergeSettingsBlock } from "./harness/settings-block.mjs";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-const HERE = dirname(fileURLToPath(import.meta.url)); // корень бандла (рядом лежат plugin.json + harness/)
+const HERE = dirname(fileURLToPath(import.meta.url)); // корень бандла (рядом — package.json + harness/)
 
 function parseArgs(a) {
   const dry = a.includes("--dry-run");
@@ -27,74 +28,93 @@ function parseArgs(a) {
   return { dry, target };
 }
 
-function loadFrame() {
-  const manifest = JSON.parse(readFileSync(join(HERE, "plugin.json"), "utf8"));
-  const omni = manifest.omnifield;
-  if (!omni?.contentRoot || !Array.isArray(omni.frame)) {
-    throw new Error("plugin.json: нет omnifield.contentRoot / frame");
+/** Объявление обвеса из манифеста пакета. Ищем манифест рядом (бандл) и на уровень выше (исходник). */
+function loadDeclaration() {
+  for (const root of [HERE, dirname(HERE)]) {
+    const manifestPath = join(root, "package.json");
+    if (!existsSync(manifestPath)) continue;
+    const baser = JSON.parse(readFileSync(manifestPath, "utf8"))?.baser;
+    if (baser?.source?.contentRoot && Array.isArray(baser.layout)) return { root, baser };
   }
-  return omni;
+  throw new Error("package.json с блоком `baser` не найден (ни в бандле, ни в пакете)");
 }
 
-function writeLf(path, text) {
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, text.replace(/\r\n/g, "\n"));
-}
-
-function applyExact(srcPath, destPath, actions) {
+function place(srcPath, destPath) {
   mkdirSync(dirname(destPath), { recursive: true });
   cpSync(srcPath, destPath);
-  actions.push(`exact  ${destPath}`);
 }
 
-function applySeed(srcPath, destPath, actions) {
-  if (existsSync(destPath)) {
-    actions.push(`seed   ${destPath}  (уже есть — не трогаю)`);
-    return;
+/**
+ * Существующий `.claude/settings.json` мы не трогаем (placed-once) — значит регистрация хуков
+ * могла не приехать. Считаем расхождение и печатаем готовую строку ТУТ ЖЕ: доктору у ручного
+ * потребителя эталон взять негде (пакета нет, бандл лежит вне репо), а у нас он в руках.
+ * Логику расхождения берём у доктора — второй её реализации не заводим.
+ */
+async function registrationHint(contentRoot, srcPath, destPath) {
+  const doctor = await import(pathToFileURL(join(contentRoot, "hooks", "harness-doctor.mjs")).href);
+  const block = JSON.parse(readFileSync(srcPath, "utf8"));
+  let settings;
+  try {
+    settings = JSON.parse(readFileSync(destPath, "utf8"));
+  } catch {
+    return "`.claude/settings.json` есть, но не читается как JSON — хуки не подключены.";
   }
-  mkdirSync(dirname(destPath), { recursive: true });
-  cpSync(srcPath, destPath);
-  actions.push(`seed   ${destPath}  (создан — заполни под свой продукт)`);
+  const missing = doctor.missingRegistrations(settings, block);
+  if (!missing.length) return null;
+  return [
+    "`.claude/settings.json` уже был — он твой, и обвес его не переписывает (merge у формы нет).",
+    `  Не зарегистрировано хуков: ${missing.length}. Допиши в \`hooks\`:`,
+    ...doctor.registrationFix(missing).map((l) => `    ${l}`),
+    "  Проверить потом: `node .claude/hooks/harness-doctor.mjs`.",
+  ].join("\n");
 }
 
-function applyMerge(srcPath, destPath, actions) {
-  const fragment = JSON.parse(readFileSync(srcPath, "utf8"));
-  const current = existsSync(destPath) ? JSON.parse(readFileSync(destPath, "utf8")) : {};
-  const merged = mergeSettingsBlock(current, fragment);
-  writeLf(destPath, `${JSON.stringify(merged, null, 2)}\n`);
-  actions.push(`merge  ${destPath}  (${existsSync(destPath) ? "смерджен" : "создан"})`);
-}
-
-function main() {
+async function main() {
   const { dry, target } = parseArgs(argv.slice(2));
-  const omni = loadFrame();
-  const contentRoot = join(HERE, omni.contentRoot);
+  const { root, baser } = loadDeclaration();
+  const contentRoot = join(root, baser.source.contentRoot);
   const actions = [];
   const planned = [];
+  const notes = [];
 
-  for (const f of omni.frame) {
-    const srcPath = join(contentRoot, f.src);
-    const destPath = join(target, f.dest);
-    if (!existsSync(srcPath)) throw new Error(`frame.src не найден в бандле: ${f.src}`);
+  for (const entry of baser.layout) {
+    const cls = entry.class ?? "regenerated";
+    const srcPath = join(contentRoot, entry.src);
+    const destPath = join(target, entry.dest);
+    if (!existsSync(srcPath)) throw new Error(`layout.src не найден в бандле: ${entry.src}`);
     if (dry) {
-      planned.push(`${f.mode.padEnd(6)} ${f.src}  →  ${f.dest}`);
+      planned.push(`${cls.padEnd(11)} ${entry.src}  →  ${entry.dest}`);
       continue;
     }
-    if (f.mode === "exact") applyExact(srcPath, destPath, actions);
-    else if (f.mode === "seed") applySeed(srcPath, destPath, actions);
-    else if (f.mode === "merge") applyMerge(srcPath, destPath, actions);
-    else throw new Error(`неизвестный mode "${f.mode}" для ${f.dest}`);
+    if (cls === "regenerated") {
+      place(srcPath, destPath);
+      actions.push(`regenerated  ${entry.dest}`);
+    } else if (cls === "placed-once") {
+      if (existsSync(destPath)) {
+        actions.push(`placed-once  ${entry.dest}  (уже есть — не трогаю, им владеет человек)`);
+        if (entry.dest.endsWith(".claude/settings.json")) {
+          const hint = await registrationHint(contentRoot, srcPath, destPath);
+          if (hint) notes.push(hint);
+        }
+      } else {
+        place(srcPath, destPath);
+        actions.push(`placed-once  ${entry.dest}  (создан — заполни под себя)`);
+      }
+    } else {
+      throw new Error(`неизвестный класс "${cls}" для ${entry.dest}`);
+    }
   }
 
   if (dry) {
     process.stdout.write(
-      `agent-harness — сухой прогон (${omni.frame.length} записей) в ${target}:\n`,
+      `${baser.source.id} — сухой прогон (${baser.layout.length} записей) в ${target}:\n`,
     );
     process.stdout.write(`${planned.map((l) => `  ${l}`).join("\n")}\n`);
     return;
   }
-  process.stdout.write(`agent-harness установлен в ${target} (${actions.length} записей):\n`);
+  process.stdout.write(`${baser.source.id} установлен в ${target} (${actions.length} записей):\n`);
   process.stdout.write(`${actions.map((l) => `  ${l}`).join("\n")}\n`);
+  if (notes.length) process.stdout.write(`\n⚠ ${notes.join("\n⚠ ")}\n`);
   process.stdout.write(
     "\nДальше: заполни `.omnifield/harness.yaml` под свой продукт (product/zones/models/grabli),\n" +
       "затем `node .claude/hooks/harness-doctor.mjs` — проверка установки.\n",
@@ -102,7 +122,7 @@ function main() {
 }
 
 try {
-  main();
+  await main();
 } catch (e) {
   process.stderr.write(`✖ install провалился: ${e.message}\n`);
   process.exit(1);

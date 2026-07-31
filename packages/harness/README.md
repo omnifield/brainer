@@ -1,76 +1,132 @@
-# @brainer/agent-harness-plugin
+# @omnifield/brainer-harness
 
-Продукт-owned **plugin-капабилити** brainer для движка skeleton: **ролевая рамка**
-(architect / owner / layer) + **пресет-сид** роль-модели, доставляемые движком вслепую
-через plugin-target `agent-harness`.
+**Обвес baser**: агент-харнесс, в котором роль впаяна в сессию — ролевая рамка
+(architect / owner / layer) + машинные гейты-хуки + сид роль-модели, которую дальше ведёт
+человек.
 
-Контракт шва — `kb:DEVOPSER-6` (Plugin-контракт движка). Роли/зоны — `kb:BRAIN-3` /
-`kb:BRAIN-2`. Эпик — `tasker:BRAIN-8`; эта веха — `tasker:BRAIN-9` (рантайм-хуки — `BRAIN-10`).
+- Форма объявления — README пакета `@omnifield/baser-contracts` (форма 3). Разбор класса
+  артефакта — `kb:BASER2-2`. Станок раскладывает и обновляет; **что делать с файлом при
+  обновлении, решает обвес** — он говорит это классом.
+- Роли — `kb:BRAIN2-12`, зоны — `kb:BRAIN2-11`, онбординг сессии — `kb:BRAIN2-14`.
+- Итерация переезда на форму — `tasker:BRAIN2-17`, этот заход — `tasker:BRAIN2-41`.
 
-## Что внутри (contentRoot `harness/`)
+Имя пакета — доставка, **личность обвеса — `brainer/harness`**, и это разные вещи: пакет
+может переехать (он уже переехал из `@brainer/agent-harness-plugin`), личность — нет.
 
-| src (в contentRoot) | dest у потребителя | mode | что |
+## Что кладёт (contentRoot `harness/`)
+
+| src (в `harness/`) | dest у потребителя | class | что |
 |---|---|---|---|
-| `roles/architect.md` | `.claude/agents/architect.md` | exact | роль architect |
-| `roles/owner.md` | `.claude/agents/owner.md` | exact | роль owner-`<zone>` |
-| `roles/layer.md` | `.claude/agents/layer.md` | exact | роль layer |
-| `shared-policy.md` | `.claude/agents/shared-policy.md` | exact | инварианты рамки |
-| `hooks/harness-config.mjs` | `.claude/hooks/harness-config.mjs` | exact | загрузчик роль-модели (config = данные) |
-| `hooks/scope-resolve.mjs` | `.claude/hooks/scope-resolve.mjs` | exact | резолв scope→зона из конфига |
-| `hooks/scope-identity.mjs` | `.claude/hooks/scope-identity.mjs` | exact | SessionStart identity-баннер по роли |
-| `hooks/git-gate.mjs` | `.claude/hooks/git-gate.mjs` | exact | PreToolUse git-gate (доступ по роли из конфига) |
-| `hooks/main-session-marker.mjs` | `.claude/hooks/main-session-marker.mjs` | exact | marker main-сессии |
-| `settings.hooks.json` | `.claude/settings.json` | merge | регистрация хуков (JSON deep-merge) |
-| `harness.config.example.yaml` | `.omnifield/harness.yaml` | seed | пресет-сид роль-модели |
+| `roles/architect.md` | `.claude/agents/architect.md` | regenerated | роль architect |
+| `roles/owner.md` | `.claude/agents/owner.md` | regenerated | роль owner-`<zone>` |
+| `roles/layer.md` | `.claude/agents/layer.md` | regenerated | роль layer |
+| `shared-policy.md` | `.claude/agents/shared-policy.md` | regenerated | инварианты рамки |
+| `helpers/research.md` | `.claude/agents/research.md` | regenerated | read-only помощник роли |
+| `helpers/routine.md` | `.claude/agents/routine.md` | regenerated | правящий помощник в границах родителя |
+| `hooks/harness-config.mjs` | `.claude/hooks/harness-config.mjs` | regenerated | загрузчик роль-модели (config = данные) |
+| `hooks/scope-resolve.mjs` | `.claude/hooks/scope-resolve.mjs` | regenerated | резолв scope→зона из конфига |
+| `hooks/scope-identity.mjs` | `.claude/hooks/scope-identity.mjs` | regenerated | SessionStart identity-баннер по роли |
+| `hooks/git-gate.mjs` | `.claude/hooks/git-gate.mjs` | regenerated | PreToolUse git-gate (доступ по роли) |
+| `hooks/governance.mjs` | `.claude/hooks/governance.mjs` | regenerated | PreToolUse: правка вне зоны заблокирована |
+| `hooks/main-session-marker.mjs` | `.claude/hooks/main-session-marker.mjs` | regenerated | marker main-сессии |
+| `hooks/harness-doctor.mjs` | `.claude/hooks/harness-doctor.mjs` | regenerated | самопроверка установки (запуск руками) |
+| `gitignore.claude` | `.claude/.gitignore` | regenerated | что из `.claude/` не коммитить |
+| `settings.hooks.json` | `.claude/settings.json` | **placed-once** | регистрация хуков — см. ниже |
+| `harness.config.example.yaml` | `.omnifield/harness.yaml` | **placed-once** | роль-модель, её ведёт человек |
 
-**Рамка (exact)** — инварианты, выключить нельзя. **Сид (seed)** — продукт заполняет под
-себя (зоны, пины моделей, число архитекторов); дальше файлом владеет продукт (не drift).
+16 записей, у всех `render: false`: подстановки в содержимом нет вовсе — рамка и хуки
+product-agnostic, всё продуктовое живёт в `harness.yaml`, который читают сами хуки. Файлы
+обязаны лечь байт в байт.
+
+### Почему рамка и хуки — `regenerated`
+
+Правило класса: **`placed-once` про то, что заполняет ЧЕЛОВЕК, а не про то, где лежит файл.**
+Рамка ролей и хуки инвариантны, потребитель их не редактирует, обновление обязано их
+заменять. Объявить их `placed-once` = заморозить харнесс на первой версии у каждого
+потребителя — и **молча**, потому что `placed-once` расхождений не называет по построению.
+
+### `.omnifield/harness.yaml` — `placed-once`, и это не «свой конфиг обвеса»
+
+У формы есть штатный файл настроек потребителя — `.omnifield/brainer-harness.yaml` (имя
+считается из личности). Роль-модель в него **не уезжает и не может**: у настроек типы
+`string · number · boolean · list · map`, карта строго двухэтажная, а наша модель —
+`zones.<scope>.paths[]`, то есть карта → объект → список. Третьего этажа в форме нет по
+построению. Поэтому `settings` и `presets` мы не объявляем вовсе (это законно, а не
+полупустое объявление), а роль-модель остаётся отдельным артефактом со своей схемой.
+
+### `.claude/settings.json` — единственный артефакт, который форма не выражает
+
+Это общий файл клиента: там живут permissions, env, statusline и собственные хуки
+пользователя. Наш вклад в него — только регистрация харнесс-хуков (`settings.hooks.json`).
+
+Режимов материализации у формы нет: `merge` отменён вместе со сведением версий, `seed`
+выражается классом. Из двух доступных классов `regenerated` снёс бы чужое, поэтому —
+**`placed-once` + компенсация проверкой**. Цена класса названа вслух: новые хуки следующих
+версий приезжают в `.claude/hooks/`, а их регистрация — нет, потому что живёт в том самом
+файле, который мы больше не трогаем.
+
+Молчаливую деградацию делаем громкой в обоих путях установки:
+
+- `node .claude/hooks/harness-doctor.mjs` сверяет эталонный блок регистрации с настоящим
+  `settings.json` и печатает **готовую строку**, которую нужно дописать. Эталон он берёт
+  там, где в этой раскладке лежит содержимое обвеса: рядом с собой (исходник/бандл) либо
+  в установленном пакете, найденном по **личности** среди источников `baser.json`. Не нашёл
+  — говорит, что проверка НЕ выполнена: молчаливый зелёный хуже отсутствующего;
+- ручная установка (`scripts/install.mjs`) печатает ту же строку сразу, в момент, когда
+  видит существующий `settings.json`, — у ручного потребителя пакета нет и доктору эталон
+  взять негде.
+
+Это не обход формы: механизм не подменяется, называется то, что механизм назвать не может.
+Заявку на класс/механизм дописывания блока в чужой JSON несёт architect в BASER2.
 
 ### Config-driven хуки (роль-модель = ДАННЫЕ)
 
 Хуки читают роль-модель из `.omnifield/harness.yaml` (`harness-config.mjs`, zero-dep
 YAML-парс), НЕ хардкодят зоны/роли: `scope-resolve` резолвит зоны из конфига,
-`scope-identity` строит баннер (роль / пин модели / число архитекторов), `git-gate` —
-доступ по роли (architect=full / owner=commit-only / layer=none). Хуки исполняют `main()`
-только как скрипт (guard `import.meta.url===argv[1]`) — импортируемы без сайд-эффектов.
+`scope-identity` строит баннер (роль / пин модели / число архитекторов), `git-gate` — доступ
+по роли (architect=full / owner=commit-only / layer=none), `governance` — границу правок по
+`paths[]`. Хуки исполняют `main()` только как скрипт (guard `import.meta.url===argv[1]`) —
+импортируемы без сайд-эффектов.
 
-**settings-регистрация** заведена в `frame` записью `settings.hooks.json` → `.claude/settings.json`
-с `mode:merge`: движок `@omnifield/skeleton@^0.8.0` несёт JSON-aware deep-merge (не перезапись
-user-settings; наши hook-группы добавляются идемпотентно) — `tasker:DEVOPSER-170` закрыт, wiring
-разблокирован (`tasker:BRAIN-14`). `settings-block.mjs` остаётся harness-side reference-спекой
-merge-семантики (`mergeSettingsBlock`, покрыта `hooks.test.mjs`); движок зеркалит её поведение.
-`mode:block` (line-splice `#`-коммент-блока) — для gitignore, в JSON невалиден и здесь не используется.
+## Объявление обвеса
 
-## Метаданные плагина
+Одно и единственное — блок `baser` в `package.json`. Вендор-зеркала (`plugin.json`) больше
+нет: два объявления одного факта разъезжаются, а devopser-путь мы покинули. Версия обвеса
+живёт в `package.json.version` и только там — `source.version` форма отвергает названным
+отказом.
 
-Объявлены в `omnifield`-блоке — `package.json.omnifield` (npm-сторона) и его **зеркало**
-`plugin.json.omnifield` (вендор-сторона, language-agnostic для go/не-npm потребителей).
-`{ kind:"plugin", target:"agent-harness", stack:"any", contentRoot:"harness", frame:[…] }`.
-**`mechanism` не объявляется** — материализацию несёт per-entry `frame[].mode` (правило
-контракта). Оба блока обязаны быть консистентны (проверяет тест).
+## Установка у потребителя
 
-## Биндинг у потребителя
+**Метод #2 (станок):** объявить пакет в `baser.json` и применить.
 
-Потребитель не редактирует движок — объявляет плагин в своём `omnifield.yaml`:
-
-```yaml
-plugins:
-  - "@brainer/agent-harness-plugin@^0.1.0"
+```json
+{ "formVersion": 2, "sources": [{ "use": "@omnifield/brainer-harness" }] }
 ```
 
-## Доставка
+```sh
+npx baser plan     # что положит и что при этом потеряется
+npx baser apply
+```
 
-Двойная (как git-flow-пресет): **npm** (`node_modules`, метаданные из `package.json.omnifield`)
-и **вендор** (файлами, метаданные из `plugin.json.omnifield`). Версия пиннится в `omnifield.yaml`;
-bump → потребитель краснеет на drift-check → синкает `init`'ом.
+**Метод #1 (ручной бандл)** — пока установка обвесом не подтверждена на живом:
+
+```sh
+node scripts/pack.mjs                                   # dist/agent-harness-plugin/
+node dist/agent-harness-plugin/install.mjs <target-repo>
+```
+
+`install.mjs` читает то же объявление и исполняет те же два класса — не «как удобнее
+ручному методу». Дальше в обоих случаях: заполнить `.omnifield/harness.yaml` под свой
+продукт и прогнать доктора.
 
 ## Разработка
 
 ```sh
-nx build @brainer/agent-harness-plugin   # gate: omnifield-блок валиден против контракта
-nx test  @brainer/agent-harness-plugin   # node:test — контракт + существование frame.src
-nx lint  @brainer/agent-harness-plugin   # biome
+npx baser check packages/harness            # авторитетно: объявление против формы
+nx build @omnifield/brainer-harness         # гейт: объявление валидно и раскладка полна
+nx test  @omnifield/brainer-harness         # node:test — объявление, хуки, доктор
+nx lint  @omnifield/brainer-harness         # biome
+node harness/hooks/harness-doctor.mjs       # отчёт по установке в ЭТОМ репо (догфуд)
 ```
 
-Границы: движок/материализатор — зона devopser (не трогаем). Рантайм-хуки — `BRAIN-10`.
-Владение — см. `OWNERSHIP.md`.
+Границы: станок/движок/дверь — зона baser (не трогаем). Владение — см. `OWNERSHIP.md`.

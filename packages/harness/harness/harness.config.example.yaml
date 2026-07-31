@@ -1,9 +1,9 @@
-# harness.yaml — per-product пресет-СИД ролевой модели (agent-harness plugin).
+# harness.yaml — per-product СИД роль-модели (обвес агент-харнесса).
 #
-# Доставляется agent-harness плагином как frame-entry mode:seed → .omnifield/harness.yaml.
-# seed = создаётся, если файла нет; дальше файлом ВЛАДЕЕТ продукт (не drift-managed) —
-# заполняет под себя. Рамка (инварианты ролей) впаяна в roles/*.md + shared-policy.md,
-# а здесь — ДАННЫЕ роль-модели под конкретный продукт (kb:BRAIN-3).
+# Кладётся записью раскладки → .omnifield/harness.yaml, класс `placed-once`: станок кладёт файл
+# один раз и дальше НЕ трогает — им владеет человек, заполняет под свой продукт. Рамка
+# (инварианты ролей) впаяна в roles/*.md + shared-policy.md,
+# а здесь — ДАННЫЕ роль-модели под конкретный продукт (kb:BRAIN2-12).
 #
 # ⚠️ Значения ниже — НЕЙТРАЛЬНЫЙ ШАБЛОН (my-product / backend / frontend). Замени на своё.
 apiVersion: omnifield.dev/v1

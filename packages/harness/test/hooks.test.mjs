@@ -1,10 +1,10 @@
-// hooks.test.mjs — config-driven хуки (BRAIN-10): резолв зон из конфига (ноль хардкода),
-// git-доступ по роли, identity-баннер по роли (subprocess), settings-block splice идемпотентен.
-// node:test, ноль зависимостей.
+// hooks.test.mjs — config-driven хуки (роль-модель = ДАННЫЕ): резолв зон из конфига (ноль
+// хардкода), git-доступ по роли, identity-баннер по роли (subprocess), проверка регистрации
+// хуков доктором (цена класса placed-once, tasker:BRAIN2-41 §4). node:test, ноль зависимостей.
 
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -23,9 +23,17 @@ import {
   validateConfig,
   zonePaths,
 } from "../harness/hooks/harness-config.mjs";
+import {
+  declaredRegistrations,
+  findRegistrationBlock,
+  isRegistered,
+  missingRegistrations,
+  registrationFix,
+  registrationReport,
+  SOURCE_ID,
+} from "../harness/hooks/harness-doctor.mjs";
 import { needsOnboarding } from "../harness/hooks/scope-identity.mjs";
 import block from "../harness/settings.hooks.json" with { type: "json" };
-import { mergeSettingsBlock } from "../harness/settings-block.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PRODUCT_FIXTURE = join(HERE, "fixtures", "product");
@@ -298,44 +306,108 @@ test("needsOnboarding: my-product/пусто → true; заданный прод
   assert.equal(needsOnboarding(cfg), false); // фикстура: product=acme
 });
 
-// --- settings-block: идемпотентный splice ------------------------------------
+// --- доктор: регистрация хуков (цена класса placed-once, BRAIN2-41 §4) -------
 
-test("settings-block: регистрирует git-gate + governance (PreToolUse) + SessionStart-хуки", () => {
-  const merged = mergeSettingsBlock({}, block);
-  const cmds = JSON.stringify(merged);
-  assert.match(cmds, /git-gate\.mjs/);
-  assert.match(cmds, /governance\.mjs/); // BRAIN2-2: машинная граница правок
-  assert.match(cmds, /main-session-marker\.mjs/);
-  assert.match(cmds, /scope-identity\.mjs/);
-});
+const DOCTOR_URL = new URL("../harness/hooks/harness-doctor.mjs", import.meta.url).href;
 
-test("settings-block: splice идемпотентен (повторный merge = no-op)", () => {
-  const once = mergeSettingsBlock({}, block);
-  const twice = mergeSettingsBlock(once, block);
-  assert.deepEqual(twice, once);
-});
-
-test("settings-block: сохраняет пользовательские настройки и его хуки", () => {
-  const user = {
-    permissions: { allow: ["Read"] },
-    hooks: { SessionStart: [{ hooks: [{ type: "command", command: "node user-hook.mjs" }] }] },
-  };
-  const merged = mergeSettingsBlock(user, block);
-  assert.deepEqual(merged.permissions, { allow: ["Read"] });
-  const ss = JSON.stringify(merged.hooks.SessionStart);
-  assert.match(ss, /user-hook\.mjs/); // user-хук цел
-  assert.match(ss, /scope-identity\.mjs/); // наш добавлен
-});
-
-// --- доставка хуков объявлена в frame ---------------------------------------
-
-test("все config-driven хуки объявлены в frame (mode:exact) и существуют", async () => {
-  const pkg = JSON.parse(
-    (await import("node:fs")).readFileSync(join(HERE, "..", "package.json"), "utf8"),
+test("эталон объявляет регистрацию всех четырёх гейт-хуков", () => {
+  const regs = declaredRegistrations(block);
+  const cmds = regs.map((r) => r.command).join(" ");
+  for (const hook of ["git-gate", "governance", "main-session-marker", "scope-identity"])
+    assert.match(cmds, new RegExp(`${hook}\\.mjs`), `эталон не регистрирует ${hook}`);
+  assert.ok(
+    regs.some((r) => r.event === "PreToolUse" && r.matcher?.includes("Edit")),
+    "governance должен висеть на файло-мутирующих тулах",
   );
-  const hookDests = pkg.omnifield.frame
-    .filter((f) => f.dest.startsWith(".claude/hooks/"))
-    .map((f) => ({ dest: f.dest, mode: f.mode, src: f.src }));
+  assert.ok(regs.some((r) => r.event === "SessionStart" && r.matcher === null));
+});
+
+test("зарегистрированным считается совпадение тройки событие·matcher·команда", () => {
+  const reg = declaredRegistrations(block)[0];
+  assert.equal(isRegistered({ hooks: { [reg.event]: [reg2group(reg)] } }, reg), true);
+  // тот же хук, но повешен на другое событие — НЕ считается зарегистрированным
+  assert.equal(isRegistered({ hooks: { Other: [reg2group(reg)] } }, reg), false);
+  // тот же хук на своём событии, но с чужим matcher'ом — тоже нет
+  assert.equal(
+    isRegistered(
+      { hooks: { [reg.event]: [{ matcher: "Nope", hooks: reg2group(reg).hooks }] } },
+      reg,
+    ),
+    false,
+  );
+});
+
+function reg2group(reg) {
+  const group = reg.matcher === null ? {} : { matcher: reg.matcher };
+  group.hooks = [{ type: "command", command: reg.command }];
+  return group;
+}
+
+test("пустой settings.json → не зарегистрировано НИЧЕГО (все записи названы поимённо)", () => {
+  const missing = missingRegistrations({}, block);
+  assert.equal(missing.length, declaredRegistrations(block).length);
+});
+
+test("чужие хуки и настройки пользователя расхождением не считаются", () => {
+  const settings = JSON.parse(JSON.stringify(block));
+  settings.permissions = { allow: ["Read"] };
+  settings.hooks.SessionStart.unshift({
+    hooks: [{ type: "command", command: "node user-hook.mjs" }],
+  });
+  assert.deepEqual(missingRegistrations(settings, block), []);
+});
+
+test("наш хук рядом с чужим в одной группе — зарегистрирован (группу не сравниваем целиком)", () => {
+  const settings = JSON.parse(JSON.stringify(block));
+  settings.hooks.SessionStart[0].hooks.push({ type: "command", command: "node user-hook.mjs" });
+  assert.deepEqual(missingRegistrations(settings, block), []);
+});
+
+test("расхождение печатается ГОТОВОЙ строкой для `.claude/settings.json`", () => {
+  const fix = registrationFix(missingRegistrations({}, block));
+  assert.ok(fix.length >= 1);
+  const json = JSON.parse(`{${fix.join(",")}}`); // строка обязана быть валидным куском JSON
+  assert.ok(Array.isArray(json.PreToolUse) && Array.isArray(json.SessionStart));
+  assert.match(JSON.stringify(json), /git-gate\.mjs/);
+  assert.equal(json.PreToolUse[0].hooks[0].type, "command");
+});
+
+test("эталон находится рядом с доктором (раскладка пакета/бандла)", () => {
+  const ref = findRegistrationBlock(join(HERE, "fixtures", "product"), DOCTOR_URL);
+  assert.ok(ref, "эталонный блок не найден рядом с доктором");
+  assert.match(ref.path, /settings\.hooks\.json$/);
+});
+
+test("эталона нет → проверка НЕ выполнена и это сказано вслух (не молчаливый зелёный)", () => {
+  const nowhere = new URL("fixtures/product/.omnifield/nope.mjs", import.meta.url).href;
+  assert.equal(findRegistrationBlock(join(HERE, "fixtures", "product"), nowhere), null);
+  const lines = registrationReport(join(HERE, "fixtures", "product"), nowhere, {
+    ok: (s) => s,
+    bad: (s) => s,
+    warn: (s) => s,
+  });
+  assert.match(lines.join("\n"), /НЕ выполнена/);
+});
+
+test("нет `.claude/settings.json` у потребителя → громкий отчёт, а не тишина", () => {
+  const lines = registrationReport(join(HERE, "fixtures", "product"), DOCTOR_URL, {
+    ok: (s) => s,
+    bad: (s) => s,
+    warn: (s) => s,
+  });
+  assert.match(lines.join("\n"), /не найден|НЕ зарегистрированы/);
+});
+
+test("личность обвеса в докторе совпадает с манифестом (дубль обязан быть громким)", () => {
+  const pkg = JSON.parse(readFileSync(join(HERE, "..", "package.json"), "utf8"));
+  assert.equal(SOURCE_ID, pkg.baser.source.id);
+});
+
+// --- доставка хуков объявлена в раскладке ------------------------------------
+
+test("все config-driven хуки объявлены в раскладке (regenerated) и существуют", () => {
+  const pkg = JSON.parse(readFileSync(join(HERE, "..", "package.json"), "utf8"));
+  const hookEntries = pkg.baser.layout.filter((f) => f.dest.startsWith(".claude/hooks/"));
   for (const name of [
     "harness-config",
     "scope-resolve",
@@ -343,10 +415,12 @@ test("все config-driven хуки объявлены в frame (mode:exact) и 
     "git-gate",
     "governance",
     "main-session-marker",
+    "harness-doctor",
   ]) {
-    const entry = hookDests.find((f) => f.dest === `.claude/hooks/${name}.mjs`);
-    assert.ok(entry, `frame не кладёт ${name}.mjs`);
-    assert.equal(entry.mode, "exact");
+    const entry = hookEntries.find((f) => f.dest === `.claude/hooks/${name}.mjs`);
+    assert.ok(entry, `раскладка не кладёт ${name}.mjs`);
+    assert.equal(entry.class, "regenerated");
+    assert.equal(entry.render, false);
     assert.ok(existsSync(join(HERE, "..", "harness", entry.src)), `нет src ${entry.src}`);
   }
 });
