@@ -14,6 +14,7 @@ import {
   knownScopes,
   loadConfig,
   needsOnboarding,
+  overlappingZones,
   resolveScope,
   zoneReality,
 } from "./harness-config.mjs";
@@ -47,16 +48,16 @@ function productLabel(config) {
 
 /**
  * Конфиг объявляет зоны, которых в этом репозитории нет НИ ОДНОЙ → он не отсюда (BRAIN2-46 §2).
- * Возвращает блок строк для баннера, либо `[]`. Говорится ДО первого действия: агент, считающий
- * себя архитектором чужого продукта, пойдёт в чужой роадмап и будет искать чужие зоны.
+ * Возвращает блок строк для баннера, либо `[]`. Идёт ПЕРВЫМ, до представления роли
+ * (tasker:BRAIN2-51 §1): пока сомнение стоит после утверждения, читающий получает сначала
+ * ложную личность, а потом оговорку к ней — и запоминает первую.
  */
 export function foreignConfigWarning(config, cwd) {
   const reality = zoneReality(config, cwd);
   if (!reality.foreign) return [];
   const zones = [...new Set(reality.rows.map((r) => r.zone))].join(", ");
   return [
-    ``,
-    `## ⚠️ КОНФИГ, ПОХОЖЕ, НЕ ОТ ЭТОГО РЕПОЗИТОРИЯ`,
+    `# ⚠️ КОНФИГ, ПОХОЖЕ, НЕ ОТ ЭТОГО РЕПОЗИТОРИЯ`,
     ``,
     `\`.omnifield/harness.yaml\` объявляет зоны (${zones}), и **ни одна их папка здесь не существует**`,
     `— объявлено путей: ${reality.declared}, найдено: 0. Так выглядит конфиг, скопированный из соседнего`,
@@ -64,6 +65,33 @@ export function foreignConfigWarning(config, cwd) {
     ``,
     `**Action: STOP, спроси user.** Не иди в роадмап названного продукта и не заводи здесь`,
     `его зоны, пока не подтверждено, что конфиг верный. Разбор — \`node .claude/hooks/harness-doctor.mjs\`.`,
+  ];
+}
+
+/**
+ * Соседи по папке: зоны, чьи пути пересекаются с зоной этого scope. Владелец обязан узнать об
+ * этом ИЗ БАННЕРА (tasker:BRAIN2-51 §2) — диагностика говорит честно, но её никто не запускает,
+ * а внутри пересечения машинной границы нет и от взаимного затирания ничто не защищает.
+ * Возвращает блок строк, либо `[]`.
+ */
+export function overlapNotice(config, scope) {
+  const neighbours = overlappingZones(config)
+    .filter((pair) => pair.zones.includes(scope))
+    .map((pair) => {
+      const self = pair.zones[0] === scope ? 0 : 1;
+      return { zone: pair.zones[1 - self], mine: pair.paths[self], theirs: pair.paths[1 - self] };
+    });
+  if (!neighbours.length) return [];
+  return [
+    ``,
+    `## ⚠️ Ты делишь папку с другой зоной — границы между вами НЕТ`,
+    ...neighbours.map((n) => `- с **owner-${n.zone}**: твой \`${n.mine}\` ↔ его \`${n.theirs}\``),
+    ``,
+    `Внутри пересечения governance пустит вас обоих: он держит границу зоны против ЧУЖИХ`,
+    `папок, а не вас друг от друга. Значит от взаимного затирания не защищает ничто —`,
+    `ни гейт, ни git (у вас общее дерево). Правишь общие файлы — сначала спроси user,`,
+    `не идёт ли там работа. Пересечение не задумано — это вопрос к architect: сам`,
+    `\`.omnifield/harness.yaml\` не правь, он вне твоей зоны.`,
   ];
 }
 
@@ -126,6 +154,7 @@ function ownerBanner(config, { scope, paths, name }) {
     `- Edits — ТОЛЬКО внутри своих папок: ${list}. Любой файл вне них → STOP, верни state architect.`,
     `- Машинная граница (governance-хук) блокирует Edit/Write вне этих путей — не обходи, эскалируй ВВЕРХ.`,
     `- Перед первым Edit прочитай свой раздел в knowledger + \`${firstPath}/README.md\` (если есть).`,
+    ...overlapNotice(config, scope),
     ``,
     `## Правила (канон)`,
     `- Первым читаешь \`.claude/agents/shared-policy.md\`.`,
@@ -182,9 +211,24 @@ export function noScopeBanner(config) {
   ].join("\n");
 }
 
+/**
+ * Сомнение вперёд, представление роли — под ним и с оговоркой. Порядок и есть содержание:
+ * баннер, который сначала уверенно называет чужой продукт, а сомневается ниже, читается как
+ * «ты architect продукта X, но есть нюанс» — то есть личность уже принята (tasker:BRAIN2-51 §1).
+ */
 function withForeignWarning(banner, config, cwd) {
   const warning = foreignConfigWarning(config, cwd);
-  return warning.length ? [banner, ...warning].join("\n") : banner;
+  if (!warning.length) return banner;
+  return [
+    ...warning,
+    ``,
+    `---`,
+    ``,
+    `Ниже — представление роли **по этому же конфигу**: имя продукта, зоны и пины взяты`,
+    `из него, и доверия ему сейчас нет. Читай как гипотезу, а не как свою личность.`,
+    ``,
+    banner,
+  ].join("\n");
 }
 
 function main() {

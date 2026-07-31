@@ -41,6 +41,7 @@ import {
   foreignConfigWarning,
   needsOnboarding as needsOnboardingViaIdentity,
   noScopeBanner,
+  overlapNotice,
 } from "../harness/hooks/scope-identity.mjs";
 import block from "../harness/settings.hooks.json" with { type: "json" };
 
@@ -398,6 +399,45 @@ test("§2 баннер называет чужой конфиг чужим — �
   assert.match(out, /weber/); // чужой продукт назван
   // Здоровая фикстура предупреждения не получает.
   assert.doesNotMatch(bannerOf(runIdentity("main")), /НЕ ОТ ЭТОГО РЕПОЗИТОРИЯ/);
+});
+
+// --- BRAIN2-51: сигнал приходит туда, где его прочтут ------------------------
+
+test("§1 сомнение о чужом конфиге стоит ПЕРЕД представлением роли, не после", () => {
+  const out = bannerOf(runIdentity("main", FOREIGN_FIXTURE));
+  const doubt = out.indexOf("НЕ ОТ ЭТОГО РЕПОЗИТОРИЯ");
+  const role = out.indexOf("Ты в роли");
+  assert.ok(doubt >= 0 && role >= 0, "в баннере должны быть и сомнение, и представление роли");
+  assert.ok(doubt < role, "сначала личность, потом оговорка к ней — читающий запомнит первую");
+  assert.match(out, /Читай как гипотезу, а не как свою личность/);
+});
+
+test("§1 порядок держится и для owner-сессии, не только для архитектора", () => {
+  const out = bannerOf(runIdentity("web", FOREIGN_FIXTURE));
+  assert.ok(out.indexOf("НЕ ОТ ЭТОГО РЕПОЗИТОРИЯ") < out.indexOf("Ты в роли"));
+});
+
+test("§2 владелец пересекающейся зоны узнаёт соседа из БАННЕРА", () => {
+  const out = bannerOf(runIdentity("core", OVERLAP_FIXTURE));
+  assert.match(out, /делишь папку/);
+  assert.match(out, /owner-core-ui/); // сосед назван поимённо
+  assert.match(out, /packages\/core.*packages\/core\/ui/); // и по каким путям
+  assert.match(out, /границы между вами НЕТ|границы между вами нет/i);
+  // Симметрично: сосед узнаёт про нас.
+  assert.match(bannerOf(runIdentity("core-ui", OVERLAP_FIXTURE)), /owner-core\b/);
+});
+
+test("§2 владелец непересекающейся зоны лишнего блока не получает", () => {
+  assert.doesNotMatch(bannerOf(runIdentity("alpha")), /делишь папку/);
+  assert.deepEqual(overlapNotice(cfg, "alpha"), []);
+});
+
+test("§2 overlapNotice: сосед и стороны путей не перепутаны местами", () => {
+  const config = loadConfig(OVERLAP_FIXTURE);
+  const mine = overlapNotice(config, "core").join("\n");
+  assert.match(mine, /твой `packages\/core` ↔ его `packages\/core\/ui`/);
+  const theirs = overlapNotice(config, "core-ui").join("\n");
+  assert.match(theirs, /твой `packages\/core\/ui` ↔ его `packages\/core`/);
 });
 
 test("§2 предупреждение приезжает и owner-сессии, не только архитектору", () => {
