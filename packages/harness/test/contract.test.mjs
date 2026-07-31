@@ -58,8 +58,11 @@ test("файл настроек обвеса считается из лично�
 test("source.version не объявляется — версия обвеса живёт в манифесте пакета", () => {
   const b = decl();
   assert.ok(!("version" in b.source));
-  assert.equal(readJson("package.json").version, "0.1.0");
-  const errs = validateDeclaration({ ...b, source: { ...b.source, version: "0.1.0" } }, "x");
+  // Контракт — что версия ЕСТЬ в манифесте и она валидный семвер. НЕ какая именно:
+  // поднятие версии — штатное действие architect при публикации, и тест, который на нём
+  // краснеет, спорит с правилом вместо того, чтобы его защищать (tasker:BRAIN2-48).
+  assert.match(readJson("package.json").version, /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)*$/);
+  const errs = validateDeclaration({ ...b, source: { ...b.source, version: "1.2.3" } }, "x");
   assert.ok(errs.some((e) => e.includes("source.version")));
 });
 
@@ -69,10 +72,12 @@ test('contentRoot не "." — содержимое отделимо от обв
   assert.ok(errs.some((e) => e.includes("contentRoot")));
 });
 
-test("раскладка — 16 записей, все render:false, класс объявлен явно у каждой", () => {
+test("раскладка полна по карте, все render:false, класс объявлен явно у каждой", () => {
   const b = decl();
-  assert.equal(b.layout.length, 16);
-  assert.equal(Object.keys(EXPECTED_LAYOUT).length, 16);
+  // Сверяемся с ОЖИДАЕМОЙ картой, а не с числом: магическая «16» в двух местах — это
+  // состояние, а правило звучит «объявлено ровно то, что мы задумали». Состав раскладки
+  // меняется осознанно, и краснеть на этом должен один EXPECTED_LAYOUT, а не счётчик.
+  assert.equal(b.layout.length, Object.keys(EXPECTED_LAYOUT).length);
   for (const entry of b.layout) {
     assert.equal(entry.render, false, `${entry.dest}: подстановки нет — render:false`);
     assert.ok(ARTIFACT_CLASSES.has(entry.class), `${entry.dest}: класс не объявлен`);

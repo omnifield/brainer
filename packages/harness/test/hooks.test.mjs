@@ -184,19 +184,22 @@ test("loadConfig без файла → DEFAULT_CONFIG (degraded, зоны пус
   assert.equal(d.architects, DEFAULT_CONFIG.architects);
 });
 
+// Пины сверяем с DEFAULT_CONFIG.models, а не с именами моделей: правило — «недостающее
+// достраивается дефолтом», а КАКОЙ дефолт — продуктовая ручка, её крутят (BRAIN2-44 уже
+// покрутил). Тест на имя краснел бы на штатной правке и спорил бы с правилом, а не защищал
+// его. Саму форму пина держит тест «АЛИАСЫ, не снапшоты» ниже (tasker:BRAIN2-48).
 test("normalizeConfig достраивает недостающие секции (+ дефолт-пины моделей)", () => {
   const n = normalizeConfig({ zones: { x: { path: "p" } } });
-  assert.equal(n.models.architect, "claude-opus-5"); // дефолт-пин (MECH-7 preset)
-  assert.equal(n.models.owner, "claude-opus-5");
-  assert.equal(n.models.layer, "claude-haiku-4-5");
+  assert.deepEqual(n.models, DEFAULT_CONFIG.models);
   assert.equal(n.git.architect, "full");
 });
 
 test("models: дефолт-пины применяются, продукт переопределяет частично", () => {
   const n = normalizeConfig({ models: { owner: "custom-own" } });
-  assert.equal(n.models.architect, "claude-opus-5"); // не задан → дефолт
+  assert.equal(n.models.architect, DEFAULT_CONFIG.models.architect); // не задан → дефолт
   assert.equal(n.models.owner, "custom-own"); // переопределён продуктом
-  assert.match(n.models.layer, /haiku/); // не задан → дефолт
+  assert.equal(n.models.layer, DEFAULT_CONFIG.models.layer); // не задан → дефолт
+  assert.notEqual(DEFAULT_CONFIG.models.owner, "custom-own"); // дефолт не мутировал
 });
 
 test("пины моделей — АЛИАСЫ, не снапшоты с датой (BRAIN2-44)", () => {
