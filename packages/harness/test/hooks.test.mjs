@@ -17,10 +17,12 @@ import {
 import {
   checkpointsTarget,
   DEFAULT_CONFIG,
+  editDistance,
   gitAccess,
   grabliTarget,
   knownScopes,
   loadConfig,
+  nearestScopes,
   needsOnboarding,
   normalizeConfig,
   overlappingZones,
@@ -45,11 +47,14 @@ import {
   SOURCE_ID,
 } from "../harness/hooks/harness-doctor.mjs";
 import {
+  anomalyBanner,
   checkpointNotice,
   foreignConfigWarning,
+  launchBlock,
   needsOnboarding as needsOnboardingViaIdentity,
   noScopeBanner,
   overlapNotice,
+  pilotsNotice,
 } from "../harness/hooks/scope-identity.mjs";
 import block from "../harness/settings.hooks.json" with { type: "json" };
 
@@ -514,6 +519,92 @@ test("identity: owner-баннер перечисляет ВСЕ папки path
 test("identity: неизвестный scope → UNRESOLVED-аномалия", () => {
   const out = JSON.parse(runIdentity("gamma")).hookSpecificOutput.additionalContext;
   assert.match(out, /UNRESOLVED/);
+});
+
+// --- BRAIN2-60: адрес раздела пилотов — только архитектору --------------------
+
+test("§60 architect-баннер называет адреса раздела пилотов и ссылается на канон", () => {
+  const out = bannerOf(runIdentity("main"));
+  assert.match(out, /Раздел пилотов/);
+  assert.match(out, /kb:PILOT\b/); // ws знания из слота
+  assert.match(out, /tasker:PILOT\b/); // ws работы из слота
+  assert.match(out, /kb:PILOT-1/); // правила — ссылкой, не пересказом
+  // Правила раздела не продублированы в баннер: ступени/критерии живут в shared-policy.
+  assert.doesNotMatch(out, /обкатана минимум в ДВУХ|пилот → обкатка → канон/);
+});
+
+test("§60 owner-баннер про раздел пилотов молчит — и со слотом, и без", () => {
+  assert.doesNotMatch(bannerOf(runIdentity("alpha")), /Раздел пилотов/); // фикстура со слотом
+  assert.doesNotMatch(bannerOf(runIdentity("core", OVERLAP_FIXTURE)), /Раздел пилотов/);
+});
+
+test("§60 слот не объявлен → архитектор про раздел тоже молчит", () => {
+  assert.doesNotMatch(bannerOf(runIdentity("main", OVERLAP_FIXTURE)), /Раздел пилотов/);
+  assert.deepEqual(pilotsNotice(loadConfig(OVERLAP_FIXTURE)), []);
+});
+
+// --- BRAIN2-61: опечатка в scope — подсказка и готовая команда ----------------
+
+test("§61 расстояние Левенштейна считается (вставка/удаление/замена)", () => {
+  assert.equal(editDistance("harness", "harness"), 0);
+  assert.equal(editDistance("harnes", "harness"), 1); // пропущенный символ
+  assert.equal(editDistance("harnness", "harness"), 1); // лишний символ
+  assert.equal(editDistance("hardess", "harness"), 1); // замена
+  assert.equal(editDistance("", "abc"), 3);
+  assert.equal(editDistance("kitten", "sitting"), 3); // хрестоматийный случай
+});
+
+test("§61 nearestScopes: порог ≈ треть длины набранного, далёкое не подсказываем", () => {
+  assert.deepEqual(nearestScopes("alph", cfg), ["alpha"]); // опечатка в один символ
+  assert.deepEqual(nearestScopes("mai", cfg), ["main"]); // короткое имя, одна правка
+  assert.deepEqual(nearestScopes("betta", cfg), ["beta"]); // лишний символ
+  assert.deepEqual(nearestScopes("qwerty", cfg), []); // ничего похожего — не гадаем
+  // Граница честная: перестановка в коротком имени — ДВЕ правки Левенштейна, а порог для
+  // четырёх символов равен одной. Подсказки не будет, и это не баг, а выбранный порог:
+  // подсказываем только уверенно близкое (иначе подсказка врёт).
+  assert.deepEqual(nearestScopes("mian", cfg), []);
+  assert.deepEqual(nearestScopes("", cfg), []); // пусто — не ветка опечатки
+  // Несколько имён в пороге — отдаём все, выбор не делаем за человека.
+  const twins = normalizeConfig({ zones: { web: { paths: ["a"] }, wev: { paths: ["b"] } } });
+  assert.deepEqual(nearestScopes("wex", twins), ["web", "wev"]);
+});
+
+test("§61 один близкий кандидат — назван прямо, с готовой командой", () => {
+  const out = bannerOf(runIdentity("alph"));
+  assert.match(out, /возможно, ты имел в виду `alpha`/);
+  assert.match(out, /OMNIFIELD_SCOPE=alpha\s+claude/); // команда, а не только имя
+  assert.match(out, /Action.*STOP/s); // финал на месте
+});
+
+test("§61 несколько кандидатов — перечислены, выбор за человеком", () => {
+  const twins = normalizeConfig({ zones: { web: { paths: ["a"] }, wev: { paths: ["b"] } } });
+  const out = anomalyBanner(twins, "wex");
+  assert.match(out, /Близкие по написанию: `web`, `wev`/);
+  assert.match(out, /за тебя не выбираем/);
+  assert.doesNotMatch(out, /имел в виду/); // за человека не решили
+  assert.match(out, /OMNIFIELD_SCOPE=web\s+claude/);
+  assert.match(out, /OMNIFIELD_SCOPE=wev\s+claude/);
+});
+
+test("§61 далёкое имя — обычный список без ложной подсказки", () => {
+  const out = anomalyBanner(cfg, "qwerty");
+  assert.doesNotMatch(out, /имел в виду|Близкие по написанию/);
+  assert.match(out, /OMNIFIELD_SCOPE=alpha\s+claude/); // но команды всё равно даны
+  assert.match(out, /OMNIFIELD_SCOPE=main\s+claude/);
+});
+
+test("§61 совет «перезапустись» идёт РАНЬШЕ «впиши зону в конфиг»", () => {
+  for (const out of [anomalyBanner(cfg, "alph"), anomalyBanner(cfg, "qwerty")]) {
+    const restart = out.indexOf("OMNIFIELD_SCOPE=");
+    const edit = out.indexOf("впиши её в");
+    assert.ok(restart >= 0 && edit > restart, "правка конфига обязана идти вторым советом");
+  }
+});
+
+test("§61 блок команд запуска — ОДИН формат на обе ветки (роли нет / опечатка)", () => {
+  const block = launchBlock(knownScopes(cfg)).join("\n");
+  assert.ok(noScopeBanner(cfg).includes(block), "ветка «роли нет» печатает не тот блок");
+  assert.ok(anomalyBanner(cfg, "qwerty").includes(block), "ветка UNRESOLVED печатает не тот блок");
 });
 
 // --- онбординг: незаполненный сид (BRAIN2-8) ---------------------------------

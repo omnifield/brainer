@@ -286,6 +286,45 @@ export function knownScopes(config) {
   return ["main", ...Object.keys(config?.zones ?? {})];
 }
 
+/**
+ * Расстояние Левенштейна (вставка · удаление · замена), итеративно по одной строке-буферу.
+ * Двадцать строк внутри вместо готовой либы — осознанно: обвес ставится в ЧУЖИЕ репозитории,
+ * и ноль зависимостей у него дороже (решение architect, tasker:BRAIN2-61).
+ */
+export function editDistance(a, b) {
+  if (a === b) return 0;
+  if (!a.length || !b.length) return a.length || b.length;
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const row = [i];
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      row[j] = Math.min(row[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost);
+    }
+    prev = row;
+  }
+  return prev[b.length];
+}
+
+/**
+ * Ближайшие по написанию scope'ы — подсказка на ОПЕЧАТКУ (механика рынка: git `help.autocorrect`,
+ * cargo, npm/commander — везде Левенштейн с порогом около трети длины набранного, сверено
+ * 2026-08-01). Порог держим тем же: подсказываем только уверенно близкое, иначе подсказка врёт.
+ * Ноль кандидатов — не гадаем; несколько — выбор за человеком, за него не решаем.
+ */
+export function nearestScopes(scope, config) {
+  const typed = String(scope ?? "")
+    .trim()
+    .toLowerCase();
+  if (!typed) return [];
+  const limit = Math.max(1, Math.floor(typed.length / 3));
+  return knownScopes(config)
+    .map((s) => ({ s, d: editDistance(typed, s.toLowerCase()) }))
+    .filter(({ d }) => d <= limit)
+    .sort((a, b) => a.d - b.d || a.s.localeCompare(b.s))
+    .map(({ s }) => s);
+}
+
 // --- состояние установки: одно знание на баннер и на диагностику ------------
 // Тут живут признаки, по которым инструменты судят о конфиге. Раньше про плейсхолдер знал
 // только баннер, а доктор ставил на него зелёную галочку — два инструмента говорили про одно

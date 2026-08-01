@@ -14,8 +14,10 @@ import {
   checkpointsTarget,
   knownScopes,
   loadConfig,
+  nearestScopes,
   needsOnboarding,
   overlappingZones,
+  pilotWorkspace,
   resolveScope,
   serviceBase,
   zoneReality,
@@ -123,6 +125,44 @@ export function checkpointNotice(config, roleLabel) {
   ];
 }
 
+/**
+ * Готовый блок команд запуска — ОДИН формат на все случаи, когда сессию надо перезапустить
+ * (роли нет · scope не резолвится). Второй формат тут был бы разным ответом на одно и то же
+ * действие человека (tasker:BRAIN2-61). Имена выровнены по ширине — список читается столбиком.
+ */
+export function launchBlock(scopes) {
+  const width = Math.max(...scopes.map((s) => s.length));
+  const cmd = (s) => `OMNIFIELD_SCOPE=${s.padEnd(width)} claude`;
+  return [
+    `\`\`\`sh`,
+    ...scopes.map((s) =>
+      s === "main" ? `${cmd(s)}   # architect — владеет доставкой` : `${cmd(s)}   # owner-${s}`,
+    ),
+    `\`\`\``,
+  ];
+}
+
+/**
+ * Адрес раздела пилотов (tasker:BRAIN2-60) — ТОЛЬКО в architect-баннере: по рамке в раздел
+ * ходит architect, owner — через него, и владельцу зоны эта строка была бы шумом. Правила
+ * раздела здесь НЕ пересказываем (они в shared-policy, дубль разъедется) — только адрес и
+ * отсылка к канону. Слот не объявлен — строки нет: адрес не выдумываем.
+ */
+export function pilotsNotice(config) {
+  const kb = pilotWorkspace(config, "knowledger");
+  const tsk = pilotWorkspace(config, "tasker");
+  if (!kb && !tsk) return [];
+  const where = [
+    kb ? `знание — \`kb:${kb}\`` : null,
+    tsk ? `работа и ступень — \`tasker:${tsk}\`` : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  return [
+    `- **Раздел пилотов** (в него ходишь ты, owner — через тебя): ${where}; правила — \`kb:PILOT-1\`.`,
+  ];
+}
+
 function onboardingBanner(config) {
   return [
     `# Session identity — OMNIFIELD_SCOPE=main (architect · ОНБОРДИНГ)${modelLine(config, "architect")}`,
@@ -164,6 +204,7 @@ function architectBanner(config) {
     `- Git: **владеешь доставкой** — ветка → PR → влитие, вливаешь только ты (права даёт marker \`.claude/.main-session-id\`).`,
     `  Это не обход правил: главная ветка защищена, прямой коммит в неё отказывают и тебе — заводи ветку и PR.`,
     `- Отдавая ТЗ овнеру, назови git-обвязку: **ветку заводишь ТЫ** (owner'у \`git checkout -b\` режет гейт), коммит ему можно, пуш/мерж — нет.`,
+    ...pilotsNotice(config),
     ...checkpointNotice(config, "architect/main"),
   ].join("\n");
 }
@@ -200,16 +241,55 @@ function ownerBanner(config, { scope, paths, name }) {
   ].join("\n");
 }
 
-function anomalyBanner(config, scope) {
-  const list = knownScopes(config).join(", ");
-  return [
+/**
+ * Scope не резолвится. Чаще всего это ОПЕЧАТКА, а не отсутствующая зона, поэтому порядок
+ * совета такой же, как у CLI рынка: сначала «перезапустись под верным именем» с готовой
+ * командой, и только потом «а если зоны правда нет — впиши её в конфиг». Прежний порядок вёл
+ * человека править конфиг из-за одного лишнего символа (tasker:BRAIN2-61).
+ */
+export function anomalyBanner(config, scope) {
+  const scopes = knownScopes(config);
+  const near = nearestScopes(scope, config);
+  const lines = [
     `# Session identity — OMNIFIELD_SCOPE=${scope} (UNRESOLVED)`,
     ``,
     `**Аномалия**: scope "${scope}" не резолвится в зону (нет в \`.omnifield/harness.yaml\`).`,
-    `Впиши зону в \`.omnifield/harness.yaml\` (секция \`zones:\`) или перезапусти под верным scope. Доступные сейчас: ${list}.`,
+    ``,
+  ];
+  if (near.length === 1) {
+    lines.push(
+      `Похоже на опечатку — **возможно, ты имел в виду \`${near[0]}\`**. Перезапусти сессию:`,
+      ``,
+      ...launchBlock(near),
+      ``,
+      `Не то — вот все доступные:`,
+      ``,
+    );
+  } else if (near.length > 1) {
+    lines.push(
+      `Похоже на опечатку. Близкие по написанию: ${near.map((s) => `\`${s}\``).join(", ")} —`,
+      `выбери нужный сам (за тебя не выбираем) и перезапусти сессию:`,
+      ``,
+      ...launchBlock(near),
+      ``,
+      `Не то — вот все доступные:`,
+      ``,
+    );
+  } else {
+    lines.push(
+      `**Перезапусти сессию под верным scope** (похожего на "${scope}" среди них нет):`,
+      ``,
+    );
+  }
+  lines.push(
+    ...launchBlock(scopes),
+    ``,
+    `Зоны действительно нет (это не опечатка) — тогда впиши её в \`.omnifield/harness.yaml\``,
+    `(секция \`zones:\`) и перезапустись. Случай редкий: сперва проверь имя выше.`,
     ``,
     `**Action**: STOP. Сообщи user — scope невалидный. Не начинай работу (нет boundary/ownership).`,
-  ].join("\n");
+  );
+  return lines.join("\n");
 }
 
 /**
@@ -219,8 +299,6 @@ function anomalyBanner(config, scope) {
  */
 export function noScopeBanner(config) {
   const scopes = knownScopes(config);
-  const width = Math.max(...scopes.map((s) => s.length));
-  const cmd = (scope) => `OMNIFIELD_SCOPE=${scope.padEnd(width)} claude`;
   return [
     `# Session identity — РОЛИ НЕТ (\`OMNIFIELD_SCOPE\` не задан)`,
     ``,
@@ -230,10 +308,7 @@ export function noScopeBanner(config) {
     ``,
     `**Action: STOP, не начинай работу.** Перезапусти сессию с ролью:`,
     ``,
-    `\`\`\`sh`,
-    `${cmd("main")}   # architect — владеет доставкой`,
-    ...scopes.filter((s) => s !== "main").map((s) => `${cmd(s)}   # owner-${s}`),
-    `\`\`\``,
+    ...launchBlock(scopes),
     ``,
     scopes.length > 1
       ? `Доступные scope: ${scopes.join(", ")} (из \`.omnifield/harness.yaml\`).`
