@@ -1,6 +1,6 @@
 {
   "name": "@omnifield/brainer-harness",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Агент-харнесс brainer как обвес baser: роль-рамка (architect/owner/layer) + хуки-гейты + сид роль-модели.",
   "type": "module",
   "license": "UNLICENSED",

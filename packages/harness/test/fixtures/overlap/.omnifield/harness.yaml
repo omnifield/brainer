@@ -1,0 +1,13 @@
+# Фикстура BRAIN2-46 §4: две зоны объявлены на пересекающиеся пути. Это НЕ ошибка —
+# governance конфиг не валидирует и правку пускает; машинной границы между зонами просто нет.
+apiVersion: omnifield.dev/v1
+kind: harness
+product: acme
+architects: 1
+zones:
+  core:
+    paths: [packages/core]
+    description: ядро
+  core-ui:
+    paths: [packages/core/ui]
+    description: часть ядра, отданная другой роли

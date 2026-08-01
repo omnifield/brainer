@@ -50,3 +50,17 @@ grabli:
 services:
   tasker: http://tasker:8030/tasker
   knowledger: http://knowledger:8040/knowledger
+
+# Слот checkpoints (BRAIN2-58): корень чекпойнтов ролей — состояние прогона переживает сессию
+# (контейнеры переезжают и рестартятся). Узел на РОЛЬ, свой ищи среди детей корня; форма записи
+# и правила раздела — в самом корне. Не объявлен — харнесс про чекпойнт молчит.
+checkpoints:
+  workspace: BRAIN2
+  root: BRAIN2-55
+
+# Слот pilots (BRAIN2-59): общий раздел пилотов — меха обкатывается ДО каталога канонов
+# (kb:MECH). Двусторонний: знание о мехе в knowledger, работа и ступень зрелости в tasker.
+# Правила раздела целиком — kb:PILOT-1 (здесь только адрес). Ходит в раздел architect.
+pilots:
+  tasker: PILOT
+  knowledger: PILOT
