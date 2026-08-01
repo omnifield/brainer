@@ -11,11 +11,13 @@
 import { argv } from "node:process";
 import { fileURLToPath } from "node:url";
 import {
+  checkpointsTarget,
   knownScopes,
   loadConfig,
   needsOnboarding,
   overlappingZones,
   resolveScope,
+  serviceBase,
   zoneReality,
 } from "./harness-config.mjs";
 
@@ -95,6 +97,32 @@ export function overlapNotice(config, scope) {
   ];
 }
 
+/**
+ * Адрес чекпойнта роли (tasker:BRAIN2-58). Правило рамки без адреса не исполняется: агент о
+ * разделе просто не узнает, а «в конце сессии» вспоминать будет уже некому. Слот
+ * `checkpoints` не объявлен → блок ПУСТОЙ: молчим, адрес не выдумываем (как с `grabli`).
+ * Ведут чекпойнт только роль-сессии (architect/owner) — помощники живут внутри родителя.
+ */
+export function checkpointNotice(config, roleLabel) {
+  const target = checkpointsTarget(config);
+  if (!target) return [];
+  const tsk = serviceBase(config, "tasker");
+  const ws = target.workspace ? ` (ws \`${target.workspace}\`)` : "";
+  return [
+    ``,
+    `## Чекпойнт роли — состояние прогона, корень \`${target.root}\`${ws}`,
+    `- Узел на РОЛЬ (**${roleLabel}**), не на сессию: свой ищи среди детей корня, нового не заводи.`,
+    ...(tsk
+      ? [`  \`curl -s -H "Authorization: Bearer me" ${tsk}/nodes/${target.root}/children\``]
+      : []),
+    `- Пишешь **на закрытии этапа и перед длинной операцией**, не «в конце сессии»: сессия умирает посреди работы.`,
+    `- Описание узла = ТЕКУЩЕЕ состояние (перезаписываешь), комменты = история. Рядом обязательно **ветка и SHA**.`,
+    `- Форма: цель · статус · источник истины · что изменено (ветка/SHA) · что прогнано и чем подтверждено · чего не хватает · блокеры · следующее безопасное действие.`,
+    `- Чекпойнт ≠ знания: здесь состояние прогона, решения и контракты — в knowledger.`,
+    `- Подхватываешь чекпойнт — СВЕРЬ его с фактом (ветка, статусы узлов, реестр) ДО первого действия: он протухает молча.`,
+  ];
+}
+
 function onboardingBanner(config) {
   return [
     `# Session identity — OMNIFIELD_SCOPE=main (architect · ОНБОРДИНГ)${modelLine(config, "architect")}`,
@@ -136,6 +164,7 @@ function architectBanner(config) {
     `- Git: **владеешь доставкой** — ветка → PR → влитие, вливаешь только ты (права даёт marker \`.claude/.main-session-id\`).`,
     `  Это не обход правил: главная ветка защищена, прямой коммит в неё отказывают и тебе — заводи ветку и PR.`,
     `- Отдавая ТЗ овнеру, назови git-обвязку: **ветку заводишь ТЫ** (owner'у \`git checkout -b\` режет гейт), коммит ему можно, пуш/мерж — нет.`,
+    ...checkpointNotice(config, "architect/main"),
   ].join("\n");
 }
 
@@ -164,6 +193,7 @@ function ownerBanner(config, { scope, paths, name }) {
     `- **Версию пакета не поднимаешь** — это architect при публикации; назови в комменте к задаче, какую считаешь правильной.`,
     `- Хук заблокировал git — НЕ обходи (\`bash -c\`/\`&&\`/\`--no-verify\`). STOP + эскалация.`,
     `- POLICY priority 0: никаких костылей, причина не следствие, DoD = код+тесты+трейсы+доки.`,
+    ...checkpointNotice(config, `owner-${scope}`),
     ``,
     `## Скоуп задачи`,
     `Работаешь по задаче в **tasker** (\`tasker:KEY\`) или прямому ТЗ от user — НЕ по локальным файлам. Непонятен scope — STOP, спроси. Не угадывай.`,

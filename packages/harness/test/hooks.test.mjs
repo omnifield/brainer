@@ -15,6 +15,7 @@ import {
   stripHeredocBodies,
 } from "../harness/hooks/git-gate.mjs";
 import {
+  checkpointsTarget,
   DEFAULT_CONFIG,
   gitAccess,
   grabliTarget,
@@ -43,6 +44,7 @@ import {
   SOURCE_ID,
 } from "../harness/hooks/harness-doctor.mjs";
 import {
+  checkpointNotice,
   foreignConfigWarning,
   needsOnboarding as needsOnboardingViaIdentity,
   noScopeBanner,
@@ -123,6 +125,45 @@ test("serviceBase: база из слота (хвостовой / срезан);
   assert.equal(serviceBase(c, "knowledger"), null); // пустой
   assert.equal(serviceBase(normalizeConfig({}), "tasker"), null); // слот не задан
   assert.equal(serviceBase(cfg, "knowledger"), "http://knowledger:8040/knowledger"); // фикстура
+});
+
+// --- checkpoints-слот (BRAIN2-58): адрес чекпойнта роли ----------------------
+
+test("checkpointsTarget: адрес из слота; без root → null (правило молчит)", () => {
+  const c = normalizeConfig({ checkpoints: { workspace: "BRAIN2", root: " BRAIN2-55 " } });
+  assert.deepEqual(checkpointsTarget(c), { workspace: "BRAIN2", root: "BRAIN2-55" });
+  assert.equal(checkpointsTarget(normalizeConfig({})), null); // слот не объявлен
+  assert.equal(checkpointsTarget(normalizeConfig({ checkpoints: { workspace: "W" } })), null);
+  // workspace справочный: без него адрес всё ещё годен, называть есть что
+  assert.deepEqual(checkpointsTarget(normalizeConfig({ checkpoints: { root: "X-1" } })), {
+    workspace: null,
+    root: "X-1",
+  });
+  assert.deepEqual(checkpointsTarget(cfg), { workspace: "ACME", root: "ACME-1" }); // фикстура
+});
+
+test("баннер называет адрес чекпойнта — и архитектору, и владельцу зоны", () => {
+  for (const scope of ["main", "alpha"]) {
+    const out = bannerOf(runIdentity(scope));
+    assert.match(out, /Чекпойнт роли/, `${scope}: адрес чекпойнта не назван`);
+    assert.match(out, /ACME-1/, `${scope}: корень из слота не попал в баннер`);
+    assert.match(out, /закрытии этапа/); // момент записи назван там же
+  }
+  // Роль названа поимённо — узел на роль, а не на сессию.
+  assert.match(bannerOf(runIdentity("alpha")), /owner-alpha/);
+  // База сервиса есть → готовая команда, чем смотреть детей корня.
+  assert.match(bannerOf(runIdentity("main")), /nodes\/ACME-1\/children/);
+});
+
+test("слот не объявлен → про чекпойнт МОЛЧИМ (адрес не выдумываем)", () => {
+  const out = bannerOf(runIdentity("core", OVERLAP_FIXTURE));
+  assert.doesNotMatch(out, /Чекпойнт роли/);
+  assert.deepEqual(checkpointNotice(loadConfig(OVERLAP_FIXTURE), "owner-core"), []);
+});
+
+test("доктор говорит про слот чекпойнтов в обоих состояниях", () => {
+  assert.match(report(PRODUCT_FIXTURE, DOCTOR_URL), /чекпойнты ролей: корень ACME-1/);
+  assert.match(report(OVERLAP_FIXTURE, DOCTOR_URL), /чекпойнты не заданы/);
 });
 
 // --- zonePaths: paths[] канон ∪ legacy path ∪ голая строка --------------------

@@ -23,6 +23,7 @@ import { dirname, join, resolve } from "node:path";
 import { argv } from "node:process";
 import { fileURLToPath } from "node:url";
 import {
+  checkpointsTarget,
   gitAccess,
   grabliTarget,
   knownScopes,
@@ -269,6 +270,16 @@ export function report(cwd, moduleUrl) {
     );
   } else {
     p(warn("services не заданы (`services.tasker/.knowledger`) — базы сервисов не сконфигурены"));
+  }
+  const checkpoints = checkpointsTarget(config);
+  if (checkpoints) {
+    p(
+      ok(
+        `чекпойнты ролей: корень ${checkpoints.root}${checkpoints.workspace ? ` (ws ${checkpoints.workspace})` : ""} — адрес назовёт баннер роли`,
+      ),
+    );
+  } else {
+    p("  · чекпойнты не заданы (`checkpoints.root`) — про чекпойнт харнесс молчит (штатно)");
   }
   p("");
 

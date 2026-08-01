@@ -23,3 +23,6 @@ grabli:
 services:
   tasker: http://tasker:8030/tasker
   knowledger: http://knowledger:8040/knowledger
+checkpoints:
+  workspace: ACME
+  root: ACME-1
