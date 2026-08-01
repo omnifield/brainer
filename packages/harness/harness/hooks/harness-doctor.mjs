@@ -32,6 +32,7 @@ import {
   overlappingZones,
   PLACEHOLDER_PRODUCT,
   parseYaml,
+  pilotWorkspace,
   rejectedZoneNames,
   resolveScope,
   roleOf,
@@ -270,6 +271,17 @@ export function report(cwd, moduleUrl) {
     );
   } else {
     p(warn("services не заданы (`services.tasker/.knowledger`) — базы сервисов не сконфигурены"));
+  }
+  const pilotKb = pilotWorkspace(config, "knowledger");
+  const pilotTsk = pilotWorkspace(config, "tasker");
+  if (pilotKb || pilotTsk) {
+    p(
+      ok(
+        `раздел пилотов: knowledger=${pilotKb ?? "—"} · tasker=${pilotTsk ?? "—"} (ходит architect)`,
+      ),
+    );
+  } else {
+    p("  · раздел пилотов не задан (`pilots.tasker/.knowledger`) — правило молчит (штатно)");
   }
   const checkpoints = checkpointsTarget(config);
   if (checkpoints) {

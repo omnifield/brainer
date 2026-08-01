@@ -43,6 +43,10 @@ export const DEFAULT_CONFIG = {
   // Слот services (BRAIN2-9): базы omnifield-сервисов — доступ curl'ом (НЕ MCP). Адрес
   // зависит от окружения (сосед по docker-сети vs дверь через хост). null → не сконфигурен.
   services: null,
+  // Слот pilots (BRAIN2-59): раздел пилотов — общая площадка продуктов, где меха обкатывается
+  // ДО каталога канонов. Ключи — имена сервисов (как в services): знание в knowledger, работа
+  // и ступень в tasker. null → продукт раздела не знает, правило молчит.
+  pilots: null,
   // Слот checkpoints (BRAIN2-58): корень чекпойнтов ролей — состояние прогона, чтобы
   // переезд/рестарт контейнера не стоил сессии. null → продукт раздела не завёл, и тогда
   // харнесс про чекпойнт МОЛЧИТ (адрес не выдумываем), как и с grabli.
@@ -143,6 +147,7 @@ export function normalizeConfig(parsed) {
       c.checkpoints && typeof c.checkpoints === "object"
         ? c.checkpoints
         : DEFAULT_CONFIG.checkpoints,
+    pilots: c.pilots && typeof c.pilots === "object" ? c.pilots : DEFAULT_CONFIG.pilots,
   };
 }
 
@@ -156,6 +161,17 @@ export function grabliTarget(config) {
 export function serviceBase(config, name) {
   const b = config?.services?.[name];
   return typeof b === "string" && b.trim() ? b.trim().replace(/\/+$/, "") : null;
+}
+
+/**
+ * Раздел пилотов в сервисе (`tasker`/`knowledger`) из слота pilots (BRAIN2-59) — ws, где меха
+ * живёт до каталога канонов; null, если не задан. Ключи те же, что у `services`: раздел
+ * двусторонний (знание в knowledger, работа и ступень в tasker), и адрес у каждой стороны свой.
+ * Сами ступени и критерии выхода здесь НЕ живут — они данные раздела, канон в `kb:PILOT-1`.
+ */
+export function pilotWorkspace(config, service) {
+  const ws = config?.pilots?.[service];
+  return typeof ws === "string" && ws.trim() ? ws.trim() : null;
 }
 
 /**

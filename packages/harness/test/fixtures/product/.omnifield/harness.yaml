@@ -26,3 +26,6 @@ services:
 checkpoints:
   workspace: ACME
   root: ACME-1
+pilots:
+  tasker: PILOT
+  knowledger: PILOT

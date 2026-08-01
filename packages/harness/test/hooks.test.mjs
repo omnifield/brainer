@@ -26,6 +26,7 @@ import {
   overlappingZones,
   PLACEHOLDER_PRODUCT,
   parseYaml,
+  pilotWorkspace,
   resolveScope,
   roleOf,
   serviceBase,
@@ -125,6 +126,21 @@ test("serviceBase: база из слота (хвостовой / срезан);
   assert.equal(serviceBase(c, "knowledger"), null); // пустой
   assert.equal(serviceBase(normalizeConfig({}), "tasker"), null); // слот не задан
   assert.equal(serviceBase(cfg, "knowledger"), "http://knowledger:8040/knowledger"); // фикстура
+});
+
+// --- pilots-слот (BRAIN2-59): раздел пилотов --------------------------------
+
+test("pilotWorkspace: ws по имени сервиса; нет/пусто → null (правило молчит)", () => {
+  const c = normalizeConfig({ pilots: { tasker: " PILOT ", knowledger: "  " } });
+  assert.equal(pilotWorkspace(c, "tasker"), "PILOT"); // пробелы обрезаны
+  assert.equal(pilotWorkspace(c, "knowledger"), null); // пустой
+  assert.equal(pilotWorkspace(normalizeConfig({}), "tasker"), null); // слот не объявлен
+  assert.equal(pilotWorkspace(cfg, "knowledger"), "PILOT"); // из фикстуры
+});
+
+test("доктор говорит про раздел пилотов в обоих состояниях", () => {
+  assert.match(report(PRODUCT_FIXTURE, DOCTOR_URL), /раздел пилотов: knowledger=PILOT/);
+  assert.match(report(OVERLAP_FIXTURE, DOCTOR_URL), /раздел пилотов не задан/);
 });
 
 // --- checkpoints-слот (BRAIN2-58): адрес чекпойнта роли ----------------------
