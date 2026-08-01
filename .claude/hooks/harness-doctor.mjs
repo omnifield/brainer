@@ -23,17 +23,23 @@ import { dirname, join, resolve } from "node:path";
 import { argv } from "node:process";
 import { fileURLToPath } from "node:url";
 import {
+  checkpointsTarget,
   gitAccess,
   grabliTarget,
   knownScopes,
   loadConfig,
+  needsOnboarding,
+  overlappingZones,
+  PLACEHOLDER_PRODUCT,
   parseYaml,
+  pilotWorkspace,
   rejectedZoneNames,
   resolveScope,
   roleOf,
   serviceBase,
   validateConfig,
   zonePaths,
+  zoneReality,
 } from "./harness-config.mjs";
 
 /** Личность обвеса (`package.json.baser.source.id`). Дубль объявления — но ГРОМКИЙ:
@@ -237,8 +243,21 @@ export function report(cwd, moduleUrl) {
   p("");
 
   // --- продукт ---------------------------------------------------------------
-  if (config.product) p(ok(`продукт: ${config.product}`));
-  else p(warn("продукт не задан (`product:` пуст) — баннер попросит вписать"));
+  // Плейсхолдер шаблона — НЕ заполненный продукт. Раньше здесь стояла зелёная галочка на
+  // `my-product`, пока баннер тот же конфиг уводил в онбординг: два инструмента говорили про
+  // одно состояние разное, причём зелёный был у того, которым установку ПРОВЕРЯЮТ (BRAIN2-46 §1).
+  if (needsOnboarding(config)) {
+    p(
+      warn(
+        config.product
+          ? `продукт: ${config.product} — это ПЛЕЙСХОЛДЕР шаблона (\`${PLACEHOLDER_PRODUCT}\`), сид не заполнен`
+          : "продукт не задан (`product:` пуст) — сид не заполнен",
+      ),
+    );
+    p("    → architect стартует в ОНБОРДИНГ-режим; owner'ов не поднимаем (зоны — placeholder).");
+  } else {
+    p(ok(`продукт: ${config.product}`));
+  }
   p(`архитекторов сконфигурено: ${config.architects}`);
   const grabli = grabliTarget(config);
   if (grabli) p(ok(`grabli-ws: ${grabli} (затыки/грабли пишем сюда)`));
@@ -252,6 +271,27 @@ export function report(cwd, moduleUrl) {
     );
   } else {
     p(warn("services не заданы (`services.tasker/.knowledger`) — базы сервисов не сконфигурены"));
+  }
+  const pilotKb = pilotWorkspace(config, "knowledger");
+  const pilotTsk = pilotWorkspace(config, "tasker");
+  if (pilotKb || pilotTsk) {
+    p(
+      ok(
+        `раздел пилотов: knowledger=${pilotKb ?? "—"} · tasker=${pilotTsk ?? "—"} (ходит architect)`,
+      ),
+    );
+  } else {
+    p("  · раздел пилотов не задан (`pilots.tasker/.knowledger`) — правило молчит (штатно)");
+  }
+  const checkpoints = checkpointsTarget(config);
+  if (checkpoints) {
+    p(
+      ok(
+        `чекпойнты ролей: корень ${checkpoints.root}${checkpoints.workspace ? ` (ws ${checkpoints.workspace})` : ""} — адрес назовёт баннер роли`,
+      ),
+    );
+  } else {
+    p("  · чекпойнты не заданы (`checkpoints.root`) — про чекпойнт харнесс молчит (штатно)");
   }
   p("");
 
@@ -279,14 +319,42 @@ export function report(cwd, moduleUrl) {
       }
     }
   }
-  // Валидатор роль-модели (disjoint / relative / непустой) — kb:BRAIN2-1.
+  // Конфиг объявляет зоны, которых здесь нет НИ ОДНОЙ → он не от этого репозитория.
+  // Отметки «ПАПКИ НЕТ» были и раньше по каждой зоне — но их никто не складывал в вывод.
+  const reality = zoneReality(config, cwd);
+  if (reality.foreign) {
+    p("");
+    p(bad("КОНФИГ, ПОХОЖЕ, НЕ ОТ ЭТОГО РЕПОЗИТОРИЯ"));
+    p(`    объявлено путей: ${reality.declared}, существует: 0 — ни одной зоны здесь нет.`);
+    p(
+      `    Так выглядит harness.yaml, скопированный из соседнего продукта${config.product ? ` (\`product: ${config.product}\`)` : ""}:`,
+    );
+    p("    имя продукта, роадмап и зоны в нём — чужие. Проверь с user, прежде чем работать.");
+  } else if (reality.declared && reality.present < reality.declared) {
+    p(
+      warn(
+        `папок нет у ${reality.declared - reality.present} из ${reality.declared} объявленных путей — boundary на пустоту`,
+      ),
+    );
+  }
+  // Валидатор роль-модели (relative / непустой) — kb:BRAIN2-1.
   const cfgErrors = validateConfig(config);
   if (cfgErrors.length) {
     p("");
     p(bad(`валидатор роль-модели: ${cfgErrors.length} ошибок`));
     for (const e of cfgErrors) p(`    - ${e}`);
   } else if (zones.length) {
-    p(ok("валидатор роль-модели: пути relative, непустые, не пересекаются"));
+    p(ok("валидатор роль-модели: пути относительные и непустые"));
+  }
+  // Пересечение зон — НЕ ошибка: governance конфиг не валидирует и правку пускает. Раньше
+  // мы называли это ошибкой «одна папка — один владелец» и тем обещали защиту, которой нет.
+  const overlaps = overlappingZones(config);
+  if (overlaps.length) {
+    p(warn(`пути зон пересекаются (${overlaps.length}) — машинной границы между ними НЕТ:`));
+    for (const o of overlaps)
+      p(`    - "${o.zones[0]}" ↔ "${o.zones[1]}": "${o.paths[0]}" ↔ "${o.paths[1]}"`);
+    p("    Задумано так (несколько ролей над одними файлами) — это законная раскладка.");
+    p("    Не задумано — разведи paths[], иначе владельца у этих файлов машинно нет.");
   }
   p("");
 

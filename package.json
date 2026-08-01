@@ -19,8 +19,8 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.3",
-    "@omnifield/baser-cli": "^0.0.4",
-    "@omnifield/baser-devbox": "^0.8.0",
+    "@omnifield/baser-cli": "^0.1.0",
+    "@omnifield/baser-devbox": "^0.8.1",
     "@omnifield/biome-preset": "^0.1.1",
     "@omnifield/brainer-harness": "workspace:*",
     "@omnifield/nx-preset": "^0.1.3",
