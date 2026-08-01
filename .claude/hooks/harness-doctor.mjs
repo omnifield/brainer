@@ -208,6 +208,102 @@ export function registrationReport(cwd, moduleUrl, { ok, bad, warn }) {
   return lines;
 }
 
+// --- машинный pre-commit: есть он или его нет (BRAIN2-64) --------------------
+//
+// ГРАНИЦА, названная вслух, чтобы через месяц её не «дочинили»: git-хуки потребителя — ЕГО
+// территория. Обвес их НЕ везёт и молча не ставит. Рынок здесь единодушен (сверено 2026-08-01):
+// husky ставится явным `npx husky init` + `prepare` в манифесте ПОТРЕБИТЕЛЯ, lefthook —
+// `lefthook install`, python-фреймворк pre-commit — `pre-commit install`. Ни один не приезжает
+// хуком за компанию с зависимостью: инструмент, который ты завёл, и хук, который тебе положили
+// в `.git/`, — разные вещи, и второе никто не делает.
+//
+// Наше дело — сказать ПРАВДУ о том, есть машина или нет: рамка требует зелёный pre-commit, и
+// агент, который считает, что его проверят, ведёт себя иначе, чем тот, кто знает, что не
+// проверят (случай owner-сессии baser, tasker:BRAIN2-52).
+
+/** Каталог `.git`: папка либо файл `gitdir: …` (worktree/submodule). null — репозитория нет. */
+export function gitDirOf(cwd) {
+  const dot = join(cwd, ".git");
+  if (!existsSync(dot)) return null;
+  try {
+    const text = readFileSync(dot, "utf8"); // папку прочитать не выйдет → catch ниже
+    const ref = /^gitdir:\s*(.+)$/m.exec(text)?.[1]?.trim();
+    return ref ? resolve(cwd, ref) : null;
+  } catch {
+    return dot; // это папка
+  }
+}
+
+/** `core.hooksPath` из `.git/config` (INI: секция `[core]`), либо null. */
+export function hooksPathOf(gitDir) {
+  let text;
+  try {
+    text = readFileSync(join(gitDir, "config"), "utf8");
+  } catch {
+    return null;
+  }
+  let section = null;
+  for (const line of text.split(/\r?\n/)) {
+    const head = /^\s*\[([^\]]+)\]/.exec(line);
+    if (head) {
+      section = head[1].trim().toLowerCase();
+      continue;
+    }
+    if (section !== "core") continue;
+    const kv = /^\s*hooksPath\s*=\s*(.+?)\s*$/i.exec(line);
+    if (kv) return kv[1];
+  }
+  return null;
+}
+
+/**
+ * Состояние машинного pre-commit у потребителя:
+ *   { repo, live, via, dormant } — есть ли репозиторий · видит ли git хук · откуда · и не лежит
+ *   ли хук ФАЙЛОМ мимо git'а (типовой случай: `.husky/pre-commit` есть, а `prepare` не выполнен,
+ *   то есть машина выглядит установленной, но не работает — молчаливая деградация).
+ */
+export function precommitStatus(cwd) {
+  const gitDir = gitDirOf(cwd);
+  if (!gitDir) return { repo: false, live: false, via: null, dormant: null };
+  const configured = hooksPathOf(gitDir);
+  const candidates = [
+    ...(configured
+      ? [{ dir: resolve(cwd, configured), via: `core.hooksPath = ${configured}` }]
+      : []),
+    { dir: join(gitDir, "hooks"), via: ".git/hooks/pre-commit" },
+  ];
+  for (const c of candidates)
+    if (existsSync(join(c.dir, "pre-commit")))
+      return { repo: true, live: true, via: c.via, dormant: null };
+  const husky = join(cwd, ".husky", "pre-commit");
+  return {
+    repo: true,
+    live: false,
+    via: null,
+    dormant: existsSync(husky) ? ".husky/pre-commit" : null,
+  };
+}
+
+/** Отчёт по машинному pre-commit: строки для печати. */
+export function precommitReport(cwd, { ok, bad, warn }) {
+  const s = precommitStatus(cwd);
+  if (!s.repo) return [warn("git-репозиторий не найден — про машинный pre-commit сказать нечего")];
+  if (s.live) return [ok(`машинный pre-commit подключён (${s.via})`)];
+  const lines = s.dormant
+    ? [
+        bad(`машинный pre-commit НЕ работает: файл ${s.dormant} есть, но git его не видит`),
+        "    (`core.hooksPath` не настроен — установка инструмента не доведена до конца).",
+      ]
+    : [bad("машинного pre-commit НЕТ — коммит в этом репозитории не проверит никто")];
+  lines.push(
+    "    Рамка требует зелёный pre-commit (test+lint+build) — это ТРЕБОВАНИЕ К ПРОДУКТУ, а не",
+    "    обещание обвеса: git-хуки твоя территория, и обвес их не везёт. Заведи машину сам",
+    "    (`npx husky init` · `lefthook install` · `pre-commit install`) — до тех пор каденс",
+    "    держится на агенте: test/lint/build руками перед каждым коммитом.",
+  );
+  return lines;
+}
+
 // --- отчёт -------------------------------------------------------------------
 
 export function report(cwd, moduleUrl) {
@@ -360,6 +456,10 @@ export function report(cwd, moduleUrl) {
 
   // --- регистрация хуков (цена класса placed-once, см. шапку) ----------------
   for (const line of registrationReport(cwd, moduleUrl, { ok, bad, warn })) p(line);
+  p("");
+
+  // --- машинный pre-commit (BRAIN2-64: рамка его требует, обвес его не везёт) -
+  for (const line of precommitReport(cwd, { ok, bad, warn })) p(line);
   p("");
 
   // --- текущий scope ---------------------------------------------------------

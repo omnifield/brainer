@@ -55,7 +55,7 @@
       "source": "brainer/harness",
       "version": "0.2.0",
       "class": "regenerated",
-      "hash": "sha256:c6cae0d35d964e8f547c304731b069e5690651913ca1788edd85a305ee802a2b"
+      "hash": "sha256:5f4bd2c9bad3b63e8723b921acb2fa14ce4faeb4c4bc38b0a1fee7cc66596ddd"
     },
     {
       "dest": ".claude/hooks/git-gate.mjs",
@@ -79,7 +79,7 @@
       "source": "brainer/harness",
       "version": "0.2.0",
       "class": "regenerated",
-      "hash": "sha256:da0c4d0f1dbb4651527e19d51037d112828196a8858067de3259c59db22d6ab0"
+      "hash": "sha256:d7f343a26234d309c2a21f3b40e8c5f203486b18ab2ce1a69827ceb81eceb786"
     },
     {
       "dest": ".claude/hooks/harness-doctor.mjs",
@@ -87,7 +87,7 @@
       "source": "brainer/harness",
       "version": "0.2.0",
       "class": "regenerated",
-      "hash": "sha256:a214acbbc319ae852b12aa55a54954f580c90ab3fb9f358611305ea55a089198"
+      "hash": "sha256:9461a6307180976f5067a14ce3e626194f2120b2054f4350d3b32fd7c3b1e4d3"
     },
     {
       "dest": ".claude/hooks/main-session-marker.mjs",
