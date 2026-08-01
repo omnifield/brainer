@@ -46,7 +46,8 @@ owner'ов всех продуктов, включая сам brainer).
   в коллектор (`BRAINER_OTEL_ENDPOINT`, стек observability, Grafana). orchestrator читает
   этот поток → статус/активность сессий бесплатно.
 - **Спавн сессий** — headless-адаптер `claude-code` в backend (прежний ps1-лаунчер
-  `claude-scope` снят, `BRAIN-7`); роль сессии задаётся `OMNIFIELD_SCOPE`.
+  `claude-scope` снят, опись закрытого v1 — `tasker:BRAIN2-37`); роль сессии задаётся
+  `OMNIFIELD_SCOPE`.
 - **FleetView** (мульти-агент вью харнесса) — свериться до стройки, не изобретать готовое.
 
 ## MVP (узко)
