@@ -4,7 +4,8 @@
 
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -39,8 +40,12 @@ import {
 import {
   declaredRegistrations,
   findRegistrationBlock,
+  gitDirOf,
+  hooksPathOf,
   isRegistered,
   missingRegistrations,
+  precommitReport,
+  precommitStatus,
   registrationFix,
   registrationReport,
   report,
@@ -545,13 +550,18 @@ test("§60 слот не объявлен → архитектор про раз
 
 // --- BRAIN2-61: опечатка в scope — подсказка и готовая команда ----------------
 
-test("§61 расстояние Левенштейна считается (вставка/удаление/замена)", () => {
+test("§61/63 расстояние считается: вставка · удаление · замена · перестановка", () => {
   assert.equal(editDistance("harness", "harness"), 0);
   assert.equal(editDistance("harnes", "harness"), 1); // пропущенный символ
   assert.equal(editDistance("harnness", "harness"), 1); // лишний символ
   assert.equal(editDistance("hardess", "harness"), 1); // замена
   assert.equal(editDistance("", "abc"), 3);
   assert.equal(editDistance("kitten", "sitting"), 3); // хрестоматийный случай
+  // BRAIN2-63: перестановка соседей стоит ОДНУ правку (Дамерау—Левенштейн, OSA), не две.
+  assert.equal(editDistance("mian", "main"), 1);
+  assert.equal(editDistance("hanress", "harness"), 1);
+  // Перестановка НЕ соседей остаётся двумя правками — OSA этого класса и не обещает.
+  assert.equal(editDistance("abcd", "dbca"), 2);
 });
 
 test("§61 nearestScopes: порог ≈ треть длины набранного, далёкое не подсказываем", () => {
@@ -559,14 +569,26 @@ test("§61 nearestScopes: порог ≈ треть длины набранно�
   assert.deepEqual(nearestScopes("mai", cfg), ["main"]); // короткое имя, одна правка
   assert.deepEqual(nearestScopes("betta", cfg), ["beta"]); // лишний символ
   assert.deepEqual(nearestScopes("qwerty", cfg), []); // ничего похожего — не гадаем
-  // Граница честная: перестановка в коротком имени — ДВЕ правки Левенштейна, а порог для
-  // четырёх символов равен одной. Подсказки не будет, и это не баг, а выбранный порог:
-  // подсказываем только уверенно близкое (иначе подсказка врёт).
-  assert.deepEqual(nearestScopes("mian", cfg), []);
+  // BRAIN2-63, перевёрнутая граница BRAIN2-61: раньше перестановка в коротком имени стоила
+  // ДВЕ правки и в порог не попадала — тест закреплял, что подсказки нет. Перешли на
+  // Дамерау—Левенштейна (перестановка = 1 правка), и теперь она ЛОВИТСЯ. Порог не трогали.
+  assert.deepEqual(nearestScopes("mian", cfg), ["main"]);
+  assert.deepEqual(nearestScopes("aplha", cfg), ["alpha"]); // перестановка в длинном имени
   assert.deepEqual(nearestScopes("", cfg), []); // пусто — не ветка опечатки
   // Несколько имён в пороге — отдаём все, выбор не делаем за человека.
   const twins = normalizeConfig({ zones: { web: { paths: ["a"] }, wev: { paths: ["b"] } } });
   assert.deepEqual(nearestScopes("wex", twins), ["web", "wev"]);
+  // Живые классы опечаток на именах длиннее (случай user'а и соседний): не сломались.
+  const zones = normalizeConfig({ zones: { harness: { paths: ["a"] }, kernel: { paths: ["b"] } } });
+  assert.deepEqual(nearestScopes("harnes", zones), ["harness"]); // пропущенный символ
+  assert.deepEqual(nearestScopes("kernell", zones), ["kernel"]); // лишний символ
+  assert.deepEqual(nearestScopes("zzzzzz", zones), []); // далёкое — без ложной подсказки
+});
+
+test("§63 перестановка даёт названного кандидата и готовую команду", () => {
+  const out = bannerOf(runIdentity("mian"));
+  assert.match(out, /возможно, ты имел в виду `main`/);
+  assert.match(out, /OMNIFIELD_SCOPE=main\s+claude/);
 });
 
 test("§61 один близкий кандидат — назван прямо, с готовой командой", () => {
@@ -727,6 +749,120 @@ test("§4 доктор описывает пересечение зон чест
   assert.match(out, /машинной границы между ними НЕТ/);
   assert.match(out, /законная раскладка/);
   assert.match(out, /core.*core-ui|core-ui.*core/);
+});
+
+// --- BRAIN2-64: рамка требует pre-commit, доктор говорит, есть ли он ---------
+
+const FMT = { ok: (s) => `ok: ${s}`, bad: (s) => `bad: ${s}`, warn: (s) => `warn: ${s}` };
+
+/** Временный «репозиторий» под сценарий: собираем нужные файлы, после теста сносим. */
+function withRepo(build, check) {
+  const dir = mkdtempSync(join(tmpdir(), "harness-precommit-"));
+  try {
+    build(dir);
+    check(dir);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+function put(dir, rel, content = "#!/bin/sh\nexit 0\n") {
+  const abs = join(dir, rel);
+  mkdirSync(dirname(abs), { recursive: true });
+  writeFileSync(abs, content);
+}
+
+test("§64 хук в `.git/hooks` — машина есть, доктор говорит откуда", () => {
+  withRepo(
+    (dir) => put(dir, ".git/hooks/pre-commit"),
+    (dir) => {
+      const s = precommitStatus(dir);
+      assert.equal(s.live, true);
+      assert.match(s.via, /\.git[/\\]hooks/);
+      assert.match(precommitReport(dir, FMT).join("\n"), /^ok: машинный pre-commit подключён/);
+    },
+  );
+});
+
+test("§64 `core.hooksPath` (husky и подобные) читается из `.git/config`", () => {
+  withRepo(
+    (dir) => {
+      put(dir, ".git/config", "[core]\n\tbare = false\n\thooksPath = .husky/_\n[remote]\n");
+      put(dir, ".husky/_/pre-commit");
+    },
+    (dir) => {
+      assert.equal(hooksPathOf(join(dir, ".git")), ".husky/_");
+      const s = precommitStatus(dir);
+      assert.equal(s.live, true);
+      assert.match(s.via, /core\.hooksPath = \.husky\/_/);
+    },
+  );
+});
+
+test("§64 хук лежит файлом, но git его не видит — это НЕ зелёный, а громкий отказ", () => {
+  withRepo(
+    (dir) => {
+      put(dir, ".git/config", "[core]\n\tbare = false\n");
+      put(dir, ".husky/pre-commit"); // `prepare` не выполнялся → core.hooksPath не настроен
+    },
+    (dir) => {
+      const s = precommitStatus(dir);
+      assert.equal(s.live, false);
+      assert.equal(s.dormant, ".husky/pre-commit");
+      const out = precommitReport(dir, FMT).join("\n");
+      assert.match(out, /^bad: .*git его не видит/m);
+      assert.match(out, /core\.hooksPath/);
+    },
+  );
+});
+
+test("§64 машины нет вовсе — доктор говорит громко и называет границу «не везём»", () => {
+  withRepo(
+    (dir) => put(dir, ".git/config", "[core]\n\tbare = false\n"),
+    (dir) => {
+      const s = precommitStatus(dir);
+      assert.deepEqual([s.repo, s.live, s.dormant], [true, false, null]);
+      const out = precommitReport(dir, FMT).join("\n");
+      assert.match(out, /^bad: машинного pre-commit НЕТ/m);
+      assert.match(out, /ТРЕБОВАНИЕ К ПРОДУКТУ/);
+      assert.match(out, /обвес их не везёт/);
+      assert.match(out, /husky init|lefthook install|pre-commit install/);
+      assert.match(out, /руками перед каждым коммитом/);
+    },
+  );
+});
+
+test("§64 не репозиторий — говорим об этом, а не выдаём отсутствие хука за отказ", () => {
+  withRepo(
+    () => {},
+    (dir) => {
+      assert.equal(precommitStatus(dir).repo, false);
+      assert.match(precommitReport(dir, FMT).join("\n"), /^warn: git-репозиторий не найден/);
+    },
+  );
+});
+
+test("§64 `.git` файлом (worktree/submodule) резолвится, а не считается отсутствием репо", () => {
+  withRepo(
+    (dir) => {
+      put(dir, ".git", "gitdir: ./real-git\n");
+      put(dir, "real-git/hooks/pre-commit");
+    },
+    (dir) => {
+      assert.equal(gitDirOf(dir), join(dir, "real-git"));
+      assert.equal(precommitStatus(dir).live, true);
+    },
+  );
+});
+
+test("§64 рамка не выдаёт машинный pre-commit за данность", () => {
+  // Защищаем ПРАВИЛО (обещание = ложь у того, кто машину не ставил), а не формулировку:
+  // прежняя строка обещала «pre-commit test+lint+build зелёные» как факт поставки.
+  const policy = readFileSync(new URL("../harness/shared-policy.md", import.meta.url), "utf8");
+  assert.doesNotMatch(policy, /^\s*pre-commit test\+lint\+build зелёные\.$/m);
+  assert.match(policy, /ТРЕБОВАНИЕ К ПРОДУКТУ/);
+  assert.match(policy, /не везёт/); // граница названа и в рамке, не только в коде
+  assert.match(policy, /каденс держится на ТЕБЕ|держится на ТЕБЕ/);
 });
 
 // --- доктор: регистрация хуков (цена класса placed-once, BRAIN2-41 §4) -------

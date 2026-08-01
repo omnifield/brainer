@@ -287,20 +287,31 @@ export function knownScopes(config) {
 }
 
 /**
- * Расстояние Левенштейна (вставка · удаление · замена), итеративно по одной строке-буферу.
+ * Расстояние Дамерау—Левенштейна, вариант с СОСЕДНИМИ перестановками (OSA): вставка ·
+ * удаление · замена · перестановка соседей — каждая ценой 1. Перестановка самый частый класс
+ * человеческой опечатки, и по коротким именам зон промахиваются именно так: на чистом
+ * Левенштейне `mian` против `main` стоило две правки и в порог не попадало (tasker:BRAIN2-63).
+ * Полный unrestricted-вариант тут не нужен — этого класса достаточно.
+ *
  * Двадцать строк внутри вместо готовой либы — осознанно: обвес ставится в ЧУЖИЕ репозитории,
  * и ноль зависимостей у него дороже (решение architect, tasker:BRAIN2-61).
  */
 export function editDistance(a, b) {
   if (a === b) return 0;
   if (!a.length || !b.length) return a.length || b.length;
+  let prev2 = null;
   let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
   for (let i = 1; i <= a.length; i++) {
     const row = [i];
     for (let j = 1; j <= b.length; j++) {
       const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      row[j] = Math.min(row[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost);
+      let best = Math.min(row[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost);
+      // Перестановка соседей ("mian" ↔ "main") — ОДНА правка, а не две.
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1])
+        best = Math.min(best, prev2[j - 2] + cost);
+      row[j] = best;
     }
+    prev2 = prev;
     prev = row;
   }
   return prev[b.length];
