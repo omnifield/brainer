@@ -21,7 +21,7 @@
   "devDependencies": {
     "@solidjs/testing-library": "^0.8.10",
     "@testing-library/jest-dom": "^6.6.3",
-    "jsdom": "^26.0.0",
+    "jsdom": "^30.0.1",
     "json-schema-to-typescript": "^15.0.4",
     "typescript": "^5.7.3",
     "vite": "^6.3.5",
